@@ -8,6 +8,10 @@ enum AppThemeMode {
   lavender,
   sand,
   minimalLight,
+  sunset,
+  bamboo,
+  cedar,
+  glacier,
 }
 
 class AppTheme {
@@ -75,6 +79,46 @@ class AppTheme {
           secondary: const Color(0xFFEEEEEE),
           text: const Color(0xFF000000),
           subtext: const Color(0xFF757575),
+        );
+      case AppThemeMode.sunset:
+        return _buildTheme(
+          brightness: Brightness.dark,
+          background: const Color(0xFF100C18),
+          surface: const Color(0xFF241E36),
+          primary: const Color(0xFFFF9E80), // Soft Coral
+          secondary: const Color(0xFF4527A0),
+          text: const Color(0xFFFFE0B2),
+          subtext: const Color(0xFFB39DDB),
+        );
+      case AppThemeMode.bamboo:
+        return _buildTheme(
+          brightness: Brightness.light,
+          background: const Color(0xFFF1F8E9),
+          surface: const Color(0xFFDCEDC8),
+          primary: const Color(0xFF33691E), // Deep Green
+          secondary: const Color(0xFFAED581),
+          text: const Color(0xFF1B5E20),
+          subtext: const Color(0xFF558B2F),
+        );
+      case AppThemeMode.cedar:
+        return _buildTheme(
+          brightness: Brightness.dark,
+          background: const Color(0xFF1D1612),
+          surface: const Color(0xFF3E2723),
+          primary: const Color(0xFFFFCCBC), // Peach
+          secondary: const Color(0xFF5D4037),
+          text: const Color(0xFFD7CCC8),
+          subtext: const Color(0xFFA1887F),
+        );
+      case AppThemeMode.glacier:
+        return _buildTheme(
+          brightness: Brightness.light,
+          background: const Color(0xFFE0F7FA),
+          surface: const Color(0xFFB2EBF2),
+          primary: const Color(0xFF006064), // Cyan
+          secondary: const Color(0xFF4DD0E1),
+          text: const Color(0xFF004D40),
+          subtext: const Color(0xFF0097A7),
         );
     }
   }
@@ -144,7 +188,7 @@ class AppTheme {
       ),
 
       iconTheme: IconThemeData(
-        color: text.withOpacity(0.8),
+        color: text.withValues(alpha: 0.8),
         size: 24,
       ),
 
@@ -199,8 +243,8 @@ class AppTheme {
       ),
 
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: background,
-        modalBackgroundColor: background,
+        backgroundColor: surface,
+        modalBackgroundColor: surface,
         elevation: 0,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.only(

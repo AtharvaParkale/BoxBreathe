@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../domain/entities/breathing_mode.dart';
+
 import '../../domain/entities/breathing_settings.dart';
 import '../../domain/usecases/get_breathing_settings.dart';
 import '../../domain/usecases/save_breathing_settings.dart';
@@ -82,6 +82,8 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
     emit(state.copyWith(
       mode: event.mode,
       status: BreathingStatus.initial,
+      sessionDurationMinutes: 3,
+      sessionRemainingSeconds: 3 * 60,
     ));
   }
 

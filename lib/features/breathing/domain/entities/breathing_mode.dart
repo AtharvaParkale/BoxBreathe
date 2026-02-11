@@ -9,61 +9,136 @@ enum BreathingPhase {
 
 class BreathingMode extends Equatable {
   final String name;
-  final int inhaleDuration;
-  final int holdFullDuration;
-  final int exhaleDuration;
-  final int holdEmptyDuration;
+  final int inhaleDurationMs;
+  final int holdFullDurationMs;
+  final int exhaleDurationMs;
+  final int holdEmptyDurationMs;
 
   const BreathingMode({
     required this.name,
-    required this.inhaleDuration,
-    required this.holdFullDuration,
-    required this.exhaleDuration,
-    required this.holdEmptyDuration,
+    required this.inhaleDurationMs,
+    required this.holdFullDurationMs,
+    required this.exhaleDurationMs,
+    required this.holdEmptyDurationMs,
   });
 
-  int get cycleDuration =>
-      inhaleDuration + holdFullDuration + exhaleDuration + holdEmptyDuration;
+  int get cycleDurationMs =>
+      inhaleDurationMs +
+      holdFullDurationMs +
+      exhaleDurationMs +
+      holdEmptyDurationMs;
 
   @override
   List<Object?> get props => [
         name,
-        inhaleDuration,
-        holdFullDuration,
-        exhaleDuration,
-        holdEmptyDuration
+        inhaleDurationMs,
+        holdFullDurationMs,
+        exhaleDurationMs,
+        holdEmptyDurationMs,
       ];
 
   static const box = BreathingMode(
     name: 'Box',
-    inhaleDuration: 4,
-    holdFullDuration: 4,
-    exhaleDuration: 4,
-    holdEmptyDuration: 4,
+    inhaleDurationMs: 4000,
+    holdFullDurationMs: 4000,
+    exhaleDurationMs: 4000,
+    holdEmptyDurationMs: 4000,
   );
 
   static const calm = BreathingMode(
     name: 'Calm',
-    inhaleDuration: 4,
-    holdFullDuration: 7,
-    exhaleDuration: 8,
-    holdEmptyDuration: 0,
+    inhaleDurationMs: 4000,
+    holdFullDurationMs: 7000,
+    exhaleDurationMs: 8000,
+    holdEmptyDurationMs: 0,
   );
 
   static const quickReset = BreathingMode(
     name: 'Quick Reset',
-    inhaleDuration: 3,
-    holdFullDuration: 3,
-    exhaleDuration: 3,
-    holdEmptyDuration: 3,
+    inhaleDurationMs: 3000,
+    holdFullDurationMs: 3000,
+    exhaleDurationMs: 3000,
+    holdEmptyDurationMs: 3000,
   );
 
   static const sleep = BreathingMode(
     name: 'Sleep',
-    inhaleDuration: 5,
-    holdFullDuration: 5,
-    exhaleDuration: 7,
-    holdEmptyDuration: 0,
+    inhaleDurationMs: 5000,
+    holdFullDurationMs: 5000,
+    exhaleDurationMs: 7000,
+    holdEmptyDurationMs: 0,
+  );
+
+  static const wimHof = BreathingMode(
+    name: 'Wim Hof',
+    inhaleDurationMs: 1500,
+    holdFullDurationMs: 0,
+    exhaleDurationMs: 1500,
+    holdEmptyDurationMs: 0,
+  );
+
+  static const deepBreathing = BreathingMode(
+    name: 'Deep Breathing',
+    inhaleDurationMs: 5000,
+    holdFullDurationMs: 0,
+    exhaleDurationMs: 5000,
+    holdEmptyDurationMs: 0,
+  );
+
+  static const relaxedHold = BreathingMode(
+    name: 'Relaxed Hold',
+    inhaleDurationMs: 4000,
+    holdFullDurationMs: 6000,
+    exhaleDurationMs: 6000,
+    holdEmptyDurationMs: 0,
+  );
+
+  static const quickBreathing = BreathingMode(
+    name: 'Quick Breathing',
+    inhaleDurationMs: 2000,
+    holdFullDurationMs: 0,
+    exhaleDurationMs: 2000,
+    holdEmptyDurationMs: 0,
+  );
+
+  static const equalBreathing = BreathingMode(
+    name: 'Equal Breathing',
+    inhaleDurationMs: 4000,
+    holdFullDurationMs: 0,
+    exhaleDurationMs: 4000,
+    holdEmptyDurationMs: 0,
+  );
+
+  static const coherence = BreathingMode(
+    name: 'Coherence',
+    inhaleDurationMs: 5500,
+    holdFullDurationMs: 0,
+    exhaleDurationMs: 5500,
+    holdEmptyDurationMs: 0,
+  );
+
+  static const pursedLip = BreathingMode(
+    name: 'Pursed Lip',
+    inhaleDurationMs: 2000,
+    holdFullDurationMs: 0,
+    exhaleDurationMs: 4000,
+    holdEmptyDurationMs: 0,
+  );
+
+  static const sevenEleven = BreathingMode(
+    name: '7-11 Relax',
+    inhaleDurationMs: 7000,
+    holdFullDurationMs: 0,
+    exhaleDurationMs: 11000,
+    holdEmptyDurationMs: 0,
+  );
+
+  static const triangular = BreathingMode(
+    name: 'Triangular',
+    inhaleDurationMs: 4000,
+    holdFullDurationMs: 4000,
+    exhaleDurationMs: 4000,
+    holdEmptyDurationMs: 0,
   );
 
   static const List<BreathingMode> values = [
@@ -71,5 +146,14 @@ class BreathingMode extends Equatable {
     calm,
     quickReset,
     sleep,
+    wimHof,
+    deepBreathing,
+    relaxedHold,
+    quickBreathing,
+    equalBreathing,
+    coherence,
+    pursedLip,
+    sevenEleven,
+    triangular,
   ];
 }

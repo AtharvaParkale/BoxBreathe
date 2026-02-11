@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/services/notification_helper.dart';
-import '../../domain/entities/settings.dart';
+
 import '../../domain/usecases/get_settings.dart';
 import '../../domain/usecases/save_settings.dart';
 import 'settings_event_state.dart';

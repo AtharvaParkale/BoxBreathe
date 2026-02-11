@@ -126,7 +126,7 @@ class SettingsPage extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: AppThemeMode.values.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 16),
+        separatorBuilder: (_, index) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
             final mode = AppThemeMode.values[index];
             final isSelected = settings.themeMode == mode;
@@ -142,7 +142,7 @@ class SettingsPage extends StatelessWidget {
                         shape: BoxShape.circle,
                         border: isSelected 
                             ? Border.all(color: Theme.of(context).primaryColor, width: 2)
-                            : Border.all(color: Colors.transparent),
+                            : Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1), width: 1),
                         boxShadow: isSelected ? [
                             BoxShadow(
                                 color: _getThemeColor(mode).withValues(alpha: 0.4),
@@ -169,6 +169,10 @@ class SettingsPage extends StatelessWidget {
           case AppThemeMode.lavender: return Colors.black;
           case AppThemeMode.sand: return Colors.black;
           case AppThemeMode.minimalLight: return Colors.black;
+          case AppThemeMode.sunset: return Colors.white;
+          case AppThemeMode.bamboo: return Colors.black;
+          case AppThemeMode.cedar: return Colors.white;
+          case AppThemeMode.glacier: return Colors.black;
       }
   }
 
@@ -180,6 +184,10 @@ class SettingsPage extends StatelessWidget {
         case AppThemeMode.lavender: return const Color(0xFFF3E5F5);
         case AppThemeMode.sand: return const Color(0xFFF5F5DC);
         case AppThemeMode.minimalLight: return const Color(0xFFFAFAFA);
+        case AppThemeMode.sunset: return const Color(0xFF100C18);
+        case AppThemeMode.bamboo: return const Color(0xFFF1F8E9);
+        case AppThemeMode.cedar: return const Color(0xFF1D1612);
+        case AppThemeMode.glacier: return const Color(0xFFE0F7FA);
       }
   }
 
@@ -210,7 +218,7 @@ class SettingsPage extends StatelessWidget {
          }
        );
 
-       if (picked != null) {
+       if (picked != null && context.mounted) {
          context.read<SettingsBloc>().add(SetDailyReminder(picked.hour, picked.minute));
        }
   }
