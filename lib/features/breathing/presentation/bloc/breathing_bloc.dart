@@ -33,21 +33,16 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
   ) async {
     final result = await getSettings();
     result.fold(
-      (failure) => null, // Keep default
+      (failure) => null,
       (settings) {
         emit(state.copyWith(
           mode: settings.mode,
-          sessionDurationMinutes: settings.durationMinutes,
-          sessionRemainingSeconds: settings.durationMinutes == -1
-              ? -1
-              : settings.durationMinutes * 60,
-          currentPhase: BreathingPhase.inhale,
-          phaseRemainingSeconds: settings.mode.inhaleDuration,
-          phaseLabel: 'Inhale',
+          // ALWAYS default to 3 minutes on load, ignoring saved duration
+          sessionDurationMinutes: 3,
+          sessionRemainingSeconds: 3 * 60,
         ));
       },
     );
-     add(StartBreathing());
   }
 
   void _onStart(StartBreathing event, Emitter<BreathingState> emit) {
@@ -73,36 +68,27 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
       sessionRemainingSeconds: state.sessionDurationMinutes == -1
           ? -1
           : state.sessionDurationMinutes * 60,
-      currentPhase: BreathingPhase.inhale,
-      phaseRemainingSeconds: state.mode.inhaleDuration,
-      phaseLabel: 'Inhale',
     ));
   }
 
   void _onChangeMode(ChangeBreathingMode event, Emitter<BreathingState> emit) {
     _tickerSubscription?.cancel();
+    // Only save the mode, not the duration (since duration is temp)
     saveSettings(BreathingSettings(
       mode: event.mode,
-      durationMinutes: state.sessionDurationMinutes,
+      durationMinutes: 3, // Default to 3 in storage just in case
     ));
 
     emit(state.copyWith(
       mode: event.mode,
       status: BreathingStatus.initial,
-      currentPhase: BreathingPhase.inhale,
-      phaseRemainingSeconds: event.mode.inhaleDuration,
-      phaseLabel: 'Inhale',
     ));
-    add(StartBreathing());
   }
 
   void _onChangeDuration(
       ChangeSessionDuration event, Emitter<BreathingState> emit) {
-    saveSettings(BreathingSettings(
-      mode: state.mode,
-      durationMinutes: event.durationMinutes,
-    ));
-
+    // Do NOT save settings. Duration is temporary.
+    
     emit(state.copyWith(
       sessionDurationMinutes: event.durationMinutes,
       sessionRemainingSeconds: event.durationMinutes == -1
@@ -110,7 +96,6 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
           : event.durationMinutes * 60,
     ));
     add(StopBreathing());
-    add(StartBreathing());
   }
 
   void _startTicker() {
@@ -119,7 +104,6 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
         Stream.periodic(const Duration(seconds: 1), (x) => x).listen((_) {
       add(TimerTick(
         sessionRemaining: state.sessionRemainingSeconds,
-        phaseRemaining: state.phaseRemainingSeconds,
       ));
     });
   }
@@ -127,68 +111,31 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
   void _onTick(TimerTick event, Emitter<BreathingState> emit) {
     if (state.status != BreathingStatus.active) return;
 
-    // 1. Update Session Timer
+    // Update Session Timer
     int newSessionRemaining = state.sessionRemainingSeconds;
     if (state.sessionDurationMinutes != -1) {
        newSessionRemaining = state.sessionRemainingSeconds - 1;
        if (newSessionRemaining <= 0) {
          _tickerSubscription?.cancel();
+         
+         // 1. Emit Completed (triggers UI "DONE", haptics, stop animation)
          emit(state.copyWith(
            status: BreathingStatus.completed,
            sessionRemainingSeconds: 0,
+         ));
+
+         // 2. Reset to Default 3 Minutes (triggers UI "READY", reset animation)
+         emit(state.copyWith(
+            status: BreathingStatus.initial,
+            sessionDurationMinutes: 3,
+            sessionRemainingSeconds: 3 * 60,
          ));
          return;
        }
     }
 
-    // 2. Update Phase Timer
-    int newPhaseRemaining = state.phaseRemainingSeconds - 1;
-    BreathingPhase newPhase = state.currentPhase;
-    String newLabel = state.phaseLabel;
-
-    if (newPhaseRemaining <= 0) {
-      // Transition to next phase
-      switch (state.currentPhase) {
-        case BreathingPhase.inhale:
-          if (state.mode.holdFullDuration > 0) {
-            newPhase = BreathingPhase.holdFull;
-            newPhaseRemaining = state.mode.holdFullDuration;
-            newLabel = 'Hold';
-          } else {
-             newPhase = BreathingPhase.exhale;
-             newPhaseRemaining = state.mode.exhaleDuration;
-             newLabel = 'Exhale';
-          }
-          break;
-        case BreathingPhase.holdFull:
-          newPhase = BreathingPhase.exhale;
-          newPhaseRemaining = state.mode.exhaleDuration;
-          newLabel = 'Exhale';
-          break;
-        case BreathingPhase.exhale:
-          if (state.mode.holdEmptyDuration > 0) {
-             newPhase = BreathingPhase.holdEmpty;
-             newPhaseRemaining = state.mode.holdEmptyDuration;
-             newLabel = 'Hold';
-          } else {
-             newPhase = BreathingPhase.inhale;
-             newPhaseRemaining = state.mode.inhaleDuration;
-             newLabel = 'Inhale';
-          }
-          break;
-        case BreathingPhase.holdEmpty:
-           newPhase = BreathingPhase.inhale;
-           newPhaseRemaining = state.mode.inhaleDuration;
-           newLabel = 'Inhale';
-           break;
-      }
-    }
-
     emit(state.copyWith(
       sessionRemainingSeconds: newSessionRemaining,
-      phaseRemainingSeconds: newPhaseRemaining,
-      currentPhase: newPhase,
-      phaseLabel: newLabel,
     ));
   }
 }

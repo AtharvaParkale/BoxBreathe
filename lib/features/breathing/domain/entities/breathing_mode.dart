@@ -55,7 +55,7 @@ class BreathingMode extends Equatable {
     inhaleDuration: 3,
     holdFullDuration: 3,
     exhaleDuration: 3,
-    holdEmptyDuration: 0,
+    holdEmptyDuration: 3,
   );
 
   static const sleep = BreathingMode(

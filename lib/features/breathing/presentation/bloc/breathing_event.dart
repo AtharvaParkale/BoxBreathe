@@ -37,10 +37,9 @@ class ChangeSessionDuration extends BreathingEvent {
 
 class TimerTick extends BreathingEvent {
   final int sessionRemaining;
-  final int phaseRemaining;
 
-  const TimerTick({required this.sessionRemaining, required this.phaseRemaining});
+  const TimerTick({required this.sessionRemaining});
 
   @override
-  List<Object> get props => [sessionRemaining, phaseRemaining];
+  List<Object> get props => [sessionRemaining];
 }
