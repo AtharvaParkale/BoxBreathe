@@ -21,7 +21,7 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
   @override
   Future<Settings> getSettings() async {
     try {
-      final themeIndex = box.get(keyTheme, defaultValue: 0) as int;
+      final themeIndex = box.get(keyTheme, defaultValue: 5) as int;
       final sound = box.get(keySound, defaultValue: true) as bool;
       final haptic = box.get(keyHaptic, defaultValue: true) as bool;
       final reminderHour = box.get(keyReminderHour, defaultValue: -1) as int;
