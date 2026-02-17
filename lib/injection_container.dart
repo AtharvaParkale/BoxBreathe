@@ -1,9 +1,9 @@
 import 'package:get_it/get_it.dart';
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'core/services/notification_helper.dart';
+import 'core/services/sound_service.dart';
 import 'features/settings/data/datasources/settings_local_data_source.dart';
 import 'features/settings/data/repositories/settings_repository_impl.dart';
 import 'features/settings/domain/repositories/settings_repository.dart';
@@ -68,6 +68,7 @@ Future<void> init() async {
 
   // Core
   await NotificationHelper.init();
+  sl.registerLazySingleton(() => SoundService());
 
   // External
   await Hive.initFlutter();

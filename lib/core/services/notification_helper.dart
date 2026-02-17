@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -31,6 +32,14 @@ class NotificationHelper {
         // Handle notification tap
       },
     );
+
+    // Request permissions for Android 13+
+    if (Platform.isAndroid) {
+      await _notificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.requestNotificationsPermission();
+    }
   }
 
   static Future<void> scheduleDailyReminder(TimeOfDay time) async {
@@ -60,8 +69,9 @@ class NotificationHelper {
           'daily_reminder',
           'Daily Reminder',
           channelDescription: 'Daily reminder to breathe',
-          importance: Importance.low,
-          priority: Priority.low,
+          importance: Importance.high,
+          priority: Priority.high,
+          ticker: 'ticker',
         ),
         iOS: DarwinNotificationDetails(),
       ),

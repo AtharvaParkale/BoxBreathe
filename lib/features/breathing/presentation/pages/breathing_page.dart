@@ -7,6 +7,8 @@ import '../bloc/breathing_state.dart';
 import '../../domain/entities/breathing_mode.dart';
 import '../../../../features/settings/presentation/bloc/settings_bloc.dart';
 import '../../../../features/settings/presentation/pages/settings_page.dart';
+import '../../../../injection_container.dart' as di;
+import '../../../../core/services/sound_service.dart';
 
 class BreathingPage extends StatefulWidget {
   const BreathingPage({super.key});
@@ -61,10 +63,19 @@ class _BreathingPageState extends State<BreathingPage>
     final state = context.read<BreathingBloc>().state;
     final phaseInfo = _calculatePhaseAndScale(_breathingController.value, state.mode);
     
-    // Haptics Trigger
+    // Haptics & Sound Trigger
     if (phaseInfo.phase != _lastPhase) {
-      final isHapticEnabled = context.read<SettingsBloc>().state.settings.isHapticEnabled;
-      if (isHapticEnabled) {
+      final settings = context.read<SettingsBloc>().state.settings;
+      
+      // Sound Cues
+      if (settings.isSoundEnabled) {
+        if (phaseInfo.phase == 'Inhale' || phaseInfo.phase == 'Exhale') {
+          di.sl<SoundService>().playBeep();
+        }
+      }
+
+      // Haptics
+      if (settings.isHapticEnabled) {
          // Trigger haptic at EVERY phase start (Inhale, Hold, Exhale)
          _triggerPhaseHaptic();
       }
