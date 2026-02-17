@@ -69,9 +69,7 @@ class _BreathingPageState extends State<BreathingPage>
       
       // Sound Cues
       if (settings.isSoundEnabled) {
-        if (phaseInfo.phase == 'Inhale' || phaseInfo.phase == 'Exhale') {
           di.sl<SoundService>().playBeep();
-        }
       }
 
       // Haptics
@@ -132,9 +130,16 @@ class _BreathingPageState extends State<BreathingPage>
   }
 
   void _runCountdown() async {
+    final settings = context.read<SettingsBloc>().state.settings;
     for (int i = 3; i > 0; i--) {
       if (!mounted) return;
       setState(() => _countdownValue = i);
+      
+      // Play Sound if enabled
+      if (settings.isSoundEnabled) {
+         di.sl<SoundService>().playBeep();
+      }
+
       await Future.delayed(const Duration(seconds: 1));
     }
     

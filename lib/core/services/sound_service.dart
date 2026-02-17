@@ -14,9 +14,10 @@ class SoundService {
   }
 
   Future<void> playBeep() async {
-    // Reuse the same player instance, reset and play
+    // Stop any existing playback to ensure clean restart
     await _player.stop();
-    await _player.resume();
+    // Use play() with the source explicitly to ensure it starts from the beginning every time
+    await _player.play(AssetSource('audio/breath_beep.mp3'), volume: 0.3);
   }
 
   void dispose() {
