@@ -74,9 +74,9 @@ class _BreathingPageState extends State<BreathingPage>
 
   void _triggerPhaseHaptic() {
      // Double Pulse Haptic
-     HapticFeedback.mediumImpact();
+     HapticFeedback.heavyImpact();
      Future.delayed(const Duration(milliseconds: 40), () {
-        if (mounted) HapticFeedback.mediumImpact();
+        if (mounted) HapticFeedback.heavyImpact();
      });
   }
 
