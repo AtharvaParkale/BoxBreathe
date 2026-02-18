@@ -178,16 +178,16 @@ class SettingsPage extends StatelessWidget {
 
   Color _getThemeColor(AppThemeMode mode) {
       switch (mode) {
-        case AppThemeMode.midnight: return Colors.black;
+        case AppThemeMode.midnight: return const Color(0xFF141416); // Premium Charcoal
         case AppThemeMode.ocean: return const Color(0xFF0F172A);
-        case AppThemeMode.forest: return const Color(0xFF1A1C19);
-        case AppThemeMode.lavender: return const Color(0xFFF3E5F5);
-        case AppThemeMode.sand: return const Color(0xFFF5F5DC);
-        case AppThemeMode.minimalLight: return const Color(0xFFFAFAFA);
-        case AppThemeMode.sunset: return const Color(0xFF100C18);
-        case AppThemeMode.bamboo: return const Color(0xFFF1F8E9);
-        case AppThemeMode.cedar: return const Color(0xFF1D1612);
-        case AppThemeMode.glacier: return const Color(0xFFE0F7FA);
+        case AppThemeMode.forest: return const Color(0xFF0D1811);
+        case AppThemeMode.lavender: return const Color(0xFFFDFBFD);
+        case AppThemeMode.sand: return const Color(0xFFFDFCF8);
+        case AppThemeMode.minimalLight: return const Color(0xFFF9FAFB); // Premium Off-White
+        case AppThemeMode.sunset: return const Color(0xFF18151E);
+        case AppThemeMode.bamboo: return const Color(0xFFF4F9F1);
+        case AppThemeMode.cedar: return const Color(0xFF1D1816);
+        case AppThemeMode.glacier: return const Color(0xFFF0F9FA);
       }
   }
 

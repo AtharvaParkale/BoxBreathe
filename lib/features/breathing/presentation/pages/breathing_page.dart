@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../widgets/premium_controls.dart';
 import '../bloc/breathing_bloc.dart';
 import '../bloc/breathing_event.dart';
 import '../bloc/breathing_state.dart';
@@ -43,10 +44,10 @@ class _BreathingPageState extends State<BreathingPage>
     // Glow Controller (Ambient)
     _glowController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 4), // Slower, more calming glow
     )..repeat(reverse: true);
 
-    _glowAnimation = Tween<double>(begin: 0.0, end: 10.0).animate(
+    _glowAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(parent: _glowController, curve: Curves.easeInOutQuad));
   }
 
@@ -83,9 +84,9 @@ class _BreathingPageState extends State<BreathingPage>
 
   void _triggerPhaseHaptic() {
      // Double Pulse Haptic
-     HapticFeedback.heavyImpact();
-     Future.delayed(const Duration(milliseconds: 40), () {
-        if (mounted) HapticFeedback.heavyImpact();
+     HapticFeedback.lightImpact(); // Softened for premium feel
+     Future.delayed(const Duration(milliseconds: 150), () {
+        if (mounted) HapticFeedback.lightImpact();
      });
   }
 
@@ -186,7 +187,7 @@ class _BreathingPageState extends State<BreathingPage>
             HapticFeedback.heavyImpact();
           }
           // Reset to initial visual state
-           _breathingController.animateTo(0.0, duration: const Duration(seconds: 1));
+           _breathingController.animateTo(0.0, duration: const Duration(seconds: 2)); // Slower reset
         } else if (state.status == BreathingStatus.initial) {
              _breathingController.reset();
              _breathingController.value = 0.0; // Ensure start small
@@ -201,232 +202,228 @@ class _BreathingPageState extends State<BreathingPage>
         // Calculate current visual state based on controller
         // We use AnimatedBuilder to drive the UI at 60fps
         return Scaffold(
-          body: SafeArea(
-            child: Column(
-              children: [
-                // Top Bar
-               Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildMinimalButton(
-                        context, 
-                        icon: Icons.grid_view_rounded, 
-                        onTap: () => _isCountingDown ? null : _showModeSelector(context),
-                      ),
-                      _buildMinimalButton(
-                        context, 
-                        icon: Icons.timer_rounded, 
-                        onTap: () => _isCountingDown ? null : _showDurationSelector(context),
-                      ),
-                      _buildMinimalButton(
-                        context, 
-                        icon: Icons.settings_rounded, 
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const SettingsPage()),
+          body: AnimatedContainer(
+            duration: const Duration(seconds: 1),
+            color: theme.colorScheme.surface, // Background transition
+            child: SafeArea(
+              child: Stack(
+                children: [
+                   // Top Bar (Custom)
+                  Positioned(
+                    top: 16,
+                    left: 24,
+                    right: 24,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        PremiumIconButton(
+                          icon: Icons.grid_view_rounded, 
+                          onTap: _isCountingDown ? null : () => _showModeSelector(context),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Centered Breathing Content
-                Expanded(
-                  child: AnimatedBuilder(
-                    animation: Listenable.merge([_breathingController, _glowAnimation]),
-                    builder: (context, child) {
-                      // Determine Phase & Scale
-                      final phaseInfo = _calculatePhaseAndScale(_breathingController.value, state.mode);
-                      String displayLabel = phaseInfo.phase.toUpperCase();
-                      double scale = phaseInfo.scale;
-                      
-                      // Override if Countdown
-                      if (_isCountingDown) {
-                        scale = 0.6;
-                        displayLabel = "GET READY";
-                      } else if (state.status == BreathingStatus.initial) {
-                        scale = 0.6;
-                        displayLabel = "READY";
-                      } else if (state.status == BreathingStatus.completed) {
-                        displayLabel = "DONE";
-                      }
-
-                      return Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            // Circle
-                            Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                // Glow dropshadows
-                                Transform.scale(
-                                  scale: scale,
-                                  child: Container(
-                                    width: 220,
-                                    height: 220,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                                          blurRadius: 30 + _glowAnimation.value,
-                                          spreadRadius: _glowAnimation.value,
-                                        ),
-                                        BoxShadow(
-                                          color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                                          blurRadius: 60,
-                                          spreadRadius: 10 + _glowAnimation.value,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                // Main Circle
-                                Transform.scale(
-                                  scale: scale,
-                                  child: Container(
-                                    width: 220,
-                                    height: 220,
-                                    decoration: BoxDecoration(
-                                      color: theme.colorScheme.primary.withValues(alpha: 0.9),
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                ),
-                                // Countdown Overlay
-                                if (_isCountingDown)
-                                  Text(
-                                    "$_countdownValue",
-                                    style: theme.textTheme.displayLarge?.copyWith(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 80),
-                            
-                            // Phase Text
-                             AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 200),
-                                  child: Text(
-                                    displayLabel,
-                                    key: ValueKey(displayLabel),
-                                    style: theme.textTheme.displayMedium,
-                                  ),
-                            ),
-                            
-                            const SizedBox(height: 16),
-                            
-                            // Timer
-                             Text(
-                              _formatTime(state.sessionRemainingSeconds),
-                              style: theme.textTheme.headlineMedium,
-                            ),
-                          ],
-                      );
-                    },
-                  ),
-                ),
-                
-                 // Bottom Controls
-                // Bottom Controls
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 50),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Reset Button (Only visible if active or paused)
-                      if (state.status == BreathingStatus.active ||
-                          state.status == BreathingStatus.paused) ...[
-                        GestureDetector(
-                          onTap: () {
-                            // Stop Breathing (Resets to initial)
-                            context.read<BreathingBloc>().add(StopBreathing());
-                          },
-                          child: Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surface,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
-                                width: 1,
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.refresh_rounded,
-                              size: 24,
-                              color: theme.colorScheme.onSurface,
-                            ),
+                        // Mode Label (Center)
+                         Text(
+                            state.mode.name.toUpperCase(),
+                            style: theme.textTheme.labelSmall?.copyWith(letterSpacing: 2.0),
+                         ),
+                        PremiumIconButton(
+                          icon: Icons.settings_rounded, 
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const SettingsPage()),
                           ),
                         ),
-                        const SizedBox(width: 32),
                       ],
-
-                      // Play/Pause Button
-                      GestureDetector(
-                        onTap: () {
-                          if (_isCountingDown) return; // Disable interactions during countdown
-
-                          if (state.status == BreathingStatus.active) {
-                            _pauseSession();
-                          } else if (state.status == BreathingStatus.paused) {
-                            _resumeSession();
-                          } else {
-                            // Start new session
-                            _startSession();
-                          }
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 80,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.secondary,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            state.status == BreathingStatus.active
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
-                            size: 32,
-                            color: theme.colorScheme.onSecondary,
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
+
+                  // Main Breathing Content (Centered)
+                  Center(
+                    child: AnimatedBuilder(
+                      animation: Listenable.merge([_breathingController, _glowAnimation]),
+                      builder: (context, child) {
+                        // Determine Phase & Scale
+                        final phaseInfo = _calculatePhaseAndScale(_breathingController.value, state.mode);
+                        String displayLabel = phaseInfo.phase.toUpperCase();
+                        double scale = phaseInfo.scale; // 0.6 to 1.0 range
+                        
+                        // Map scale (0.6 - 1.0) to Opacity (0.8 - 1.0) for "Alive" feel
+                        // (scale - 0.6) / 0.4 gives 0.0 - 1.0
+                        double aliveOpacity = 0.7 + (0.3 * ((scale - 0.6) / 0.4));
+                        
+                        // Override if Countdown
+                        if (_isCountingDown) {
+                          scale = 0.6;
+                          displayLabel = "GET READY";
+                          aliveOpacity = 0.7;
+                        } else if (state.status == BreathingStatus.initial) {
+                          scale = 0.6;
+                          displayLabel = "READY";
+                          aliveOpacity = 0.7;
+                        } else if (state.status == BreathingStatus.completed) {
+                          displayLabel = "DONE";
+                          scale = 0.6;
+                        }
+
+                        // Soft pulsing glow
+                        double ambientGlow = _glowAnimation.value * 5;
+
+                        return Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Spacer(flex: 2), // Top Spacer
+                              
+                              // Visual Circle
+                              SizedBox(
+                                width: 300, 
+                                height: 300,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    // Outer Soft Glow (Breathing)
+                                    Transform.scale(
+                                      scale: scale * 1.05, // Slightly larger
+                                      child: Container(
+                                        width: 220,
+                                        height: 220,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                                              blurRadius: 40 + ambientGlow,
+                                              spreadRadius: 10 + ambientGlow,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    
+                                    // Main Breathing Object
+                                    Transform.scale(
+                                      scale: scale,
+                                      child: Container(
+                                        width: 220,
+                                        height: 220,
+                                        decoration: BoxDecoration(
+                                          color: theme.colorScheme.primary.withValues(alpha: aliveOpacity), // Dynamic Opacity
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            // Inner depth/glow
+                                            BoxShadow(
+                                              color: theme.colorScheme.surface.withValues(alpha: 0.2),
+                                              blurRadius: 20,
+                                              spreadRadius: -10,
+                                            )
+                                          ]
+                                        ),
+                                      ),
+                                    ),
+                                    
+                                    // Countdown Overlay
+                                    if (_isCountingDown)
+                                      Text(
+                                        "$_countdownValue",
+                                        style: theme.textTheme.displayLarge?.copyWith(
+                                            color: theme.colorScheme.surface,
+                                            fontWeight: FontWeight.w300),
+                                      ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 48),
+                              
+                              // Phase Text
+                               AnimatedSwitcher(
+																duration: const Duration(milliseconds: 400),
+																transitionBuilder: (Widget child, Animation<double> animation) {
+																	return FadeTransition(opacity: animation, child: child);
+																},
+																child: Text(
+																	displayLabel,
+																	key: ValueKey(displayLabel),
+																	style: theme.textTheme.displayMedium?.copyWith(
+																		color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+																		letterSpacing: 4.0, // Airy phase text
+																	),
+																),
+															),
+                              
+                              const SizedBox(height: 24),
+                              
+                              // Timer
+                               Text(
+                                _formatTime(state.sessionRemainingSeconds),
+                                style: theme.textTheme.headlineMedium?.copyWith(
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                              ),
+                              
+                               const Spacer(flex: 3), // Bottom Spacer
+                            ],
+                        );
+                      },
+                    ),
+                  ),
+                  
+                  // Bottom Controls (Play/Pause)
+                  Positioned(
+                    bottom: 48,
+                    left: 0,
+                    right: 0,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                         // Reset Session Button
+                         AnimatedOpacity(
+                           opacity: (state.status == BreathingStatus.active || 
+                                     state.status == BreathingStatus.paused) ? 1.0 : 0.0,
+                           duration: const Duration(milliseconds: 300),
+                           child: Padding(
+                             padding: const EdgeInsets.only(right: 32),
+                             child: PremiumIconButton(
+                                icon: Icons.refresh_rounded, 
+                                size: 56,
+                                onTap: () {
+                                  context.read<BreathingBloc>().add(StopBreathing());
+                                },
+                             ),
+                           ),
+                         ),
+                        
+                        // Main Play Button
+                        PremiumPlayButton(
+                          isPlaying: state.status == BreathingStatus.active,
+                          onTap: () {
+                             if (_isCountingDown) return;
+                             if (state.status == BreathingStatus.active) {
+                               _pauseSession();
+                             } else if (state.status == BreathingStatus.paused) {
+                               _resumeSession();
+                             } else {
+                               _startSession();
+                             }
+                          },
+                        ),
+                        
+                        // Duration Selector (Right side balance)
+                         Padding(
+                           padding: const EdgeInsets.only(left: 32),
+                           child: PremiumIconButton(
+                              icon: Icons.timer_outlined, 
+                              size: 56,
+                              onTap: _isCountingDown ? null : () => _showDurationSelector(context),
+                           ),
+                         ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildMinimalButton(BuildContext context, {required IconData icon, required VoidCallback? onTap}) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(50),
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-           color: theme.colorScheme.secondary.withValues(alpha: 0.8), // Increased visibility
-           shape: BoxShape.circle,
-           border: Border.all(
-             color: theme.colorScheme.onSurface.withValues(alpha: 0.1), // Subtle border for definition
-             width: 1,
-           ),
-        ),
-        child: Icon(icon, size: 20, color: onTap == null ? theme.disabledColor : theme.colorScheme.onSurface.withValues(alpha: 0.9)),
-      ),
     );
   }
 
@@ -440,7 +437,7 @@ class _BreathingPageState extends State<BreathingPage>
   void _showModeSelector(BuildContext context) {
       showModalBottomSheet(
           context: context, 
-          isScrollControlled: true, // Allow it to take more space if needed
+          isScrollControlled: true, 
           builder: (_) => DraggableScrollableSheet(
             initialChildSize: 0.5,
             minChildSize: 0.3,
@@ -448,33 +445,29 @@ class _BreathingPageState extends State<BreathingPage>
             expand: false,
             builder: (context, scrollController) {
               return Container(
-                  padding: const EdgeInsets.fromLTRB(24, 32, 24, 0), // Bottom padding handled by list
+                  padding: const EdgeInsets.fromLTRB(24, 32, 24, 0),
                   child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text("Select Mode", style: Theme.of(context).textTheme.titleMedium),
+                        Text("Breathing Mode", style: Theme.of(context).textTheme.titleLarge),
                         const SizedBox(height: 24),
                         Expanded(
-                          child: Scrollbar(
+                          child: ListView(
                             controller: scrollController,
-                            thumbVisibility: true,
-                            child: ListView(
-                              controller: scrollController,
-                              padding: const EdgeInsets.only(bottom: 48),
-                              children: [
-                                ...BreathingMode.values.map((mode) => ListTile(
-                                  title: Text(mode.name),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                                  onTap: () {
-                                      context.read<BreathingBloc>().add(ChangeBreathingMode(mode));
-                                      _breathingController.duration = Duration(milliseconds: mode.cycleDurationMs);
-                                      Navigator.pop(context);
-                                  },
-                                  trailing: context.read<BreathingBloc>().state.mode == mode 
-                                    ? Icon(Icons.check, color: Theme.of(context).primaryColor) : null,
-                                )),
-                              ],
-                            ),
+                            padding: const EdgeInsets.only(bottom: 48),
+                            children: [
+                              ...BreathingMode.values.map((mode) => ListTile(
+                                title: Text(mode.name),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                onTap: () {
+                                    context.read<BreathingBloc>().add(ChangeBreathingMode(mode));
+                                    _breathingController.duration = Duration(milliseconds: mode.cycleDurationMs);
+                                    Navigator.pop(context);
+                                },
+                                trailing: context.read<BreathingBloc>().state.mode == mode 
+                                  ? Icon(Icons.circle, color: Theme.of(context).colorScheme.primary, size: 12) : null,
+                              )),
+                            ],
                           ),
                         ),
                       ],
@@ -494,20 +487,21 @@ class _BreathingPageState extends State<BreathingPage>
               child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text("Session Duration", style: Theme.of(context).textTheme.titleMedium),
+                    Text("Duration", style: Theme.of(context).textTheme.titleLarge),
                     const SizedBox(height: 24),
                     ...durations.map((d) => ListTile(
                       title: Text(d == -1 ? 'Infinite' : '$d min'),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       onTap: () {
                           context.read<BreathingBloc>().add(ChangeSessionDuration(d));
                           Navigator.pop(context);
                       },
                       trailing: context.read<BreathingBloc>().state.sessionDurationMinutes == d
-                        ? Icon(Icons.check, color: Theme.of(context).primaryColor) : null,
+                        ? Icon(Icons.circle, color: Theme.of(context).colorScheme.primary, size: 12) : null,
                   ))],
               ),
           )
       );
   }
 }
+

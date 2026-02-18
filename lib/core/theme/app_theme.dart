@@ -23,8 +23,9 @@ class AppTheme {
       case AppThemeMode.midnight:
         return _buildTheme(
           brightness: Brightness.dark,
-          background: const Color(0xFF000000),
-          surface: const Color(0xFF1C1C1E),
+          // Premium Charcoal
+          background: const Color(0xFF141416),
+          surface: const Color(0xFF232326),
           primary: const Color(0xFFFFFFFF),
           secondary: const Color(0xFF2C2C2E),
           text: const Color(0xFFFFFFFF),
@@ -43,10 +44,10 @@ class AppTheme {
       case AppThemeMode.forest:
         return _buildTheme(
           brightness: Brightness.dark,
-          background: const Color(0xFF051109),
-          surface: const Color(0xFF0F2618),
+          background: const Color(0xFF0D1811),
+          surface: const Color(0xFF1A2F23),
           primary: const Color(0xFFE6F4EA),
-          secondary: const Color(0xFF1C3A29),
+          secondary: const Color(0xFF2D4F3B),
           text: const Color(0xFFF1F8E9),
           subtext: const Color(0xFF81C784),
         );
@@ -73,18 +74,19 @@ class AppTheme {
       case AppThemeMode.minimalLight:
         return _buildTheme(
           brightness: Brightness.light,
-          background: const Color(0xFFFFFFFF),
-          surface: const Color(0xFFF7F7F7),
-          primary: const Color(0xFF000000),
-          secondary: const Color(0xFFEEEEEE),
-          text: const Color(0xFF000000),
-          subtext: const Color(0xFF757575),
+          // Premium Off-White
+          background: const Color(0xFFF9FAFB),
+          surface: const Color(0xFFFFFFFF),
+          primary: const Color(0xFF111827),
+          secondary: const Color(0xFFF3F4F6),
+          text: const Color(0xFF111827),
+          subtext: const Color(0xFF6B7280),
         );
       case AppThemeMode.sunset:
         return _buildTheme(
           brightness: Brightness.dark,
-          background: const Color(0xFF100C18),
-          surface: const Color(0xFF241E36),
+          background: const Color(0xFF18151E),
+          surface: const Color(0xFF2A2438),
           primary: const Color(0xFFFF9E80), // Soft Coral
           secondary: const Color(0xFF4527A0),
           text: const Color(0xFFFFE0B2),
@@ -93,8 +95,8 @@ class AppTheme {
       case AppThemeMode.bamboo:
         return _buildTheme(
           brightness: Brightness.light,
-          background: const Color(0xFFF1F8E9),
-          surface: const Color(0xFFDCEDC8),
+          background: const Color(0xFFF4F9F1),
+          surface: const Color(0xFFE5F0DB),
           primary: const Color(0xFF33691E), // Deep Green
           secondary: const Color(0xFFAED581),
           text: const Color(0xFF1B5E20),
@@ -103,8 +105,8 @@ class AppTheme {
       case AppThemeMode.cedar:
         return _buildTheme(
           brightness: Brightness.dark,
-          background: const Color(0xFF1D1612),
-          surface: const Color(0xFF3E2723),
+          background: const Color(0xFF1D1816),
+          surface: const Color(0xFF3E2D27),
           primary: const Color(0xFFFFCCBC), // Peach
           secondary: const Color(0xFF5D4037),
           text: const Color(0xFFD7CCC8),
@@ -113,8 +115,8 @@ class AppTheme {
       case AppThemeMode.glacier:
         return _buildTheme(
           brightness: Brightness.light,
-          background: const Color(0xFFE0F7FA),
-          surface: const Color(0xFFB2EBF2),
+          background: const Color(0xFFF0F9FA),
+          surface: const Color(0xFFD3EEF3),
           primary: const Color(0xFF006064), // Cyan
           secondary: const Color(0xFF4DD0E1),
           text: const Color(0xFF004D40),
@@ -144,6 +146,7 @@ class AppTheme {
       primaryColor: primary,
       cardColor: surface,
       dividerColor: Colors.transparent, // No dividers for clean look
+      splashFactory: NoSplash.splashFactory, // Remove default ripple
       
       colorScheme: ColorScheme(
         brightness: brightness,
@@ -160,35 +163,57 @@ class AppTheme {
 
       textTheme: baseTextTheme.copyWith(
         displayLarge: baseTextTheme.displayLarge?.copyWith(
-          fontSize: 32,
-          fontWeight: FontWeight.w300,
-          letterSpacing: -0.5,
+          fontSize: 36,
+          fontWeight: FontWeight.w200,
+          letterSpacing: -1.0,
+          height: 1.2,
         ),
         displayMedium: baseTextTheme.displayMedium?.copyWith(
-          fontSize: 24,
+          fontSize: 28,
           fontWeight: FontWeight.w300,
           letterSpacing: 0.5,
+          height: 1.3,
         ),
         headlineMedium: baseTextTheme.headlineMedium?.copyWith(
-          fontSize: 48,
-          fontWeight: FontWeight.w200, // Very thin timer
-          letterSpacing: 2.0,
+          fontSize: 56,
+          fontWeight: FontWeight.w100, // Very thin timer
+          letterSpacing: 1.0,
+          height: 1.1,
+          fontFeatures: [const FontFeature.tabularFigures()], // Monospace numbers
+        ),
+        titleLarge: baseTextTheme.titleLarge?.copyWith(
+          fontSize: 20,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.2,
+        ),
+        titleMedium: baseTextTheme.titleMedium?.copyWith(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.5,
         ),
         bodyLarge: baseTextTheme.bodyLarge?.copyWith(
           fontSize: 16,
           fontWeight: FontWeight.w400,
-          letterSpacing: 0.5,
+          letterSpacing: 0.3,
+          height: 1.5,
+        ),
+        bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.2,
+          height: 1.5,
+          color: text.withValues(alpha: 0.8),
         ),
         labelSmall: baseTextTheme.labelSmall?.copyWith(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          letterSpacing: 1.2,
+          letterSpacing: 1.5,
           color: subtext,
         ),
       ),
 
       iconTheme: IconThemeData(
-        color: text.withValues(alpha: 0.8),
+        color: text.withValues(alpha: 0.9),
         size: 24,
       ),
 
@@ -196,6 +221,7 @@ class AppTheme {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        scrolledUnderElevation: 0,
         titleTextStyle: baseTextTheme.titleMedium?.copyWith(
           fontSize: 16,
           fontWeight: FontWeight.w500,
@@ -209,8 +235,8 @@ class AppTheme {
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(
           foregroundColor: text,
-          highlightColor: primary.withValues(alpha: 0.1),
-          splashFactory: InkRipple.splashFactory,
+          highlightColor: primary.withValues(alpha: 0.05),
+          splashFactory: NoSplash.splashFactory,
         ),
       ),
       
@@ -218,13 +244,14 @@ class AppTheme {
         backgroundColor: secondary,
         foregroundColor: text,
         elevation: 0,
+        highlightElevation: 0,
         shape: const CircleBorder(),
       ),
 
       // Clean List Tiles
       listTileTheme: ListTileThemeData(
         contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         tileColor: Colors.transparent,
         textColor: text,
         iconColor: subtext,
@@ -236,7 +263,7 @@ class AppTheme {
           return subtext;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return primary.withValues(alpha: 0.3);
+          if (states.contains(WidgetState.selected)) return primary.withValues(alpha: 0.2);
           return  secondary;
         }),
         trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
@@ -247,12 +274,10 @@ class AppTheme {
         modalBackgroundColor: surface,
         elevation: 0,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(32),
-            topRight: Radius.circular(32),
-          ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
         ),
       ),
     );
   }
 }
+
