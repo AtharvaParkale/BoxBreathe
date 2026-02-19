@@ -1,4 +1,4 @@
-package com.boxbreathe.box_breathe
+package com.justonedev.BoxBreathe
 
 import io.flutter.embedding.android.FlutterActivity
 
