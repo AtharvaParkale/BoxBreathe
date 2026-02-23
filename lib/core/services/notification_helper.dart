@@ -75,10 +75,11 @@ class NotificationHelper {
         ),
         iOS: DarwinNotificationDetails(),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
+
 
   static Future<void> cancelReminders() async {
     await _notificationsPlugin.cancelAll();

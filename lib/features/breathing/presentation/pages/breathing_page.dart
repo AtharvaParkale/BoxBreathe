@@ -221,10 +221,35 @@ class _BreathingPageState extends State<BreathingPage>
                           onTap: _isCountingDown ? null : () => _showModeSelector(context),
                         ),
                         // Mode Label (Center)
-                         Text(
-                            state.mode.name.toUpperCase(),
-                            style: theme.textTheme.labelSmall?.copyWith(letterSpacing: 2.0),
-                         ),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              state.mode.name.toUpperCase(),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                letterSpacing: 2.0,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${_formatDuration(state.mode.inhaleDurationMs)} • ${_formatDuration(state.mode.holdFullDurationMs)} • ${_formatDuration(state.mode.exhaleDurationMs)} • ${_formatDuration(state.mode.holdEmptyDurationMs)}',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                                  letterSpacing: 1.2,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                         PremiumIconButton(
                           icon: Icons.settings_rounded, 
                           onTap: () => Navigator.push(
@@ -432,6 +457,11 @@ class _BreathingPageState extends State<BreathingPage>
     final minutes = totalSeconds ~/ 60;
     final seconds = totalSeconds % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  String _formatDuration(int ms) {
+    final double seconds = ms / 1000;
+    return seconds == seconds.toInt() ? '${seconds.toInt()}s' : '${seconds}s';
   }
 
   void _showModeSelector(BuildContext context) {
