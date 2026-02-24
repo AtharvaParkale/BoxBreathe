@@ -20,13 +20,11 @@ class BreathingLocalDataSourceImpl implements BreathingLocalDataSource {
     try {
       final modeIndex = box.get(keyModeIndex, defaultValue: 0) as int;
       final duration = box.get(keyDuration, defaultValue: 3) as int;
-      
-      final mode = BreathingMode.values.elementAtOrNull(modeIndex) ?? BreathingMode.box;
 
-      return BreathingSettings(
-        mode: mode,
-        durationMinutes: duration,
-      );
+      final mode =
+          BreathingMode.values.elementAtOrNull(modeIndex) ?? BreathingMode.box;
+
+      return BreathingSettings(mode: mode, durationMinutes: duration);
     } catch (e) {
       throw CacheException();
     }
@@ -45,8 +43,8 @@ class BreathingLocalDataSourceImpl implements BreathingLocalDataSource {
 }
 
 extension ListGetOrNull on List {
-    dynamic elementAtOrNull(int index) {
-        if (index < 0 || index >= length) return null;
-        return this[index];
-    }
+  dynamic elementAtOrNull(int index) {
+    if (index < 0 || index >= length) return null;
+    return this[index];
+  }
 }

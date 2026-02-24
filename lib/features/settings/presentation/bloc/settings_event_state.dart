@@ -25,6 +25,13 @@ class ToggleSound extends SettingsEvent {
   List<Object> get props => [isEnabled];
 }
 
+class ChangeSoundCue extends SettingsEvent {
+  final String soundCue;
+  const ChangeSoundCue(this.soundCue);
+  @override
+  List<Object> get props => [soundCue];
+}
+
 class ToggleHaptic extends SettingsEvent {
   final bool isEnabled;
   const ToggleHaptic(this.isEnabled);
@@ -46,9 +53,7 @@ class CancelDailyReminder extends SettingsEvent {}
 class SettingsState extends Equatable {
   final Settings settings;
 
-  const SettingsState({
-    this.settings = Settings.defaultSettings,
-  });
+  const SettingsState({this.settings = Settings.defaultSettings});
 
   SettingsState copyWith({Settings? settings}) {
     return SettingsState(settings: settings ?? this.settings);

@@ -1,6 +1,5 @@
 import 'package:get_it/get_it.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:path_provider/path_provider.dart';
 
 import 'core/services/notification_helper.dart';
 import 'core/services/sound_service.dart';
@@ -23,10 +22,7 @@ Future<void> init() async {
   // Features - Breathing
   // Bloc
   sl.registerFactory(
-    () => BreathingBloc(
-      getSettings: sl(),
-      saveSettings: sl(),
-    ),
+    () => BreathingBloc(getSettings: sl(), saveSettings: sl()),
   );
 
   // Use cases
@@ -45,12 +41,7 @@ Future<void> init() async {
 
   // Features - Settings
   // Bloc
-  sl.registerFactory(
-    () => SettingsBloc(
-      getSettings: sl(),
-      saveSettings: sl(),
-    ),
-  );
+  sl.registerFactory(() => SettingsBloc(getSettings: sl(), saveSettings: sl()));
 
   // Use cases
   sl.registerLazySingleton(() => GetSettings(sl()));

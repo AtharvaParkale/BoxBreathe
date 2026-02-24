@@ -30,12 +30,12 @@ class BreathingMode extends Equatable {
 
   @override
   List<Object?> get props => [
-        name,
-        inhaleDurationMs,
-        holdFullDurationMs,
-        exhaleDurationMs,
-        holdEmptyDurationMs,
-      ];
+    name,
+    inhaleDurationMs,
+    holdFullDurationMs,
+    exhaleDurationMs,
+    holdEmptyDurationMs,
+  ];
 
   static const box = BreathingMode(
     name: 'Box',

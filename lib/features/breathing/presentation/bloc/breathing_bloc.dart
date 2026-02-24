@@ -13,10 +13,8 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
 
   StreamSubscription<int>? _tickerSubscription;
 
-  BreathingBloc({
-    required this.getSettings,
-    required this.saveSettings,
-  }) : super(BreathingState.initial()) {
+  BreathingBloc({required this.getSettings, required this.saveSettings})
+    : super(BreathingState.initial()) {
     on<LoadBreathingSettings>(_onLoadSettings);
     on<StartBreathing>(_onStart);
     on<PauseBreathing>(_onPause);
@@ -32,17 +30,16 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
     Emitter<BreathingState> emit,
   ) async {
     final result = await getSettings();
-    result.fold(
-      (failure) => null,
-      (settings) {
-        emit(state.copyWith(
+    result.fold((failure) => null, (settings) {
+      emit(
+        state.copyWith(
           mode: settings.mode,
           // ALWAYS default to 3 minutes on load, ignoring saved duration
           sessionDurationMinutes: 3,
           sessionRemainingSeconds: 3 * 60,
-        ));
-      },
-    );
+        ),
+      );
+    });
   }
 
   void _onStart(StartBreathing event, Emitter<BreathingState> emit) {
@@ -63,51 +60,59 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
 
   void _onStop(StopBreathing event, Emitter<BreathingState> emit) {
     _tickerSubscription?.cancel();
-    emit(state.copyWith(
-      status: BreathingStatus.initial,
-      sessionRemainingSeconds: state.sessionDurationMinutes == -1
-          ? -1
-          : state.sessionDurationMinutes * 60,
-    ));
+    emit(
+      state.copyWith(
+        status: BreathingStatus.initial,
+        sessionRemainingSeconds: state.sessionDurationMinutes == -1
+            ? -1
+            : state.sessionDurationMinutes * 60,
+      ),
+    );
   }
 
   void _onChangeMode(ChangeBreathingMode event, Emitter<BreathingState> emit) {
     _tickerSubscription?.cancel();
     // Only save the mode, not the duration (since duration is temp)
-    saveSettings(BreathingSettings(
-      mode: event.mode,
-      durationMinutes: 3, // Default to 3 in storage just in case
-    ));
+    saveSettings(
+      BreathingSettings(
+        mode: event.mode,
+        durationMinutes: 3, // Default to 3 in storage just in case
+      ),
+    );
 
-    emit(state.copyWith(
-      mode: event.mode,
-      status: BreathingStatus.initial,
-      sessionDurationMinutes: 3,
-      sessionRemainingSeconds: 3 * 60,
-    ));
+    emit(
+      state.copyWith(
+        mode: event.mode,
+        status: BreathingStatus.initial,
+        sessionDurationMinutes: 3,
+        sessionRemainingSeconds: 3 * 60,
+      ),
+    );
   }
 
   void _onChangeDuration(
-      ChangeSessionDuration event, Emitter<BreathingState> emit) {
+    ChangeSessionDuration event,
+    Emitter<BreathingState> emit,
+  ) {
     // Do NOT save settings. Duration is temporary.
-    
-    emit(state.copyWith(
-      sessionDurationMinutes: event.durationMinutes,
-      sessionRemainingSeconds: event.durationMinutes == -1
-          ? -1
-          : event.durationMinutes * 60,
-    ));
+
+    emit(
+      state.copyWith(
+        sessionDurationMinutes: event.durationMinutes,
+        sessionRemainingSeconds: event.durationMinutes == -1
+            ? -1
+            : event.durationMinutes * 60,
+      ),
+    );
     add(StopBreathing());
   }
 
   void _startTicker() {
     _tickerSubscription?.cancel();
-    _tickerSubscription =
-        Stream.periodic(const Duration(seconds: 1), (x) => x).listen((_) {
-      add(TimerTick(
-        sessionRemaining: state.sessionRemainingSeconds,
-      ));
-    });
+    _tickerSubscription = Stream.periodic(const Duration(seconds: 1), (x) => x)
+        .listen((_) {
+          add(TimerTick(sessionRemaining: state.sessionRemainingSeconds));
+        });
   }
 
   void _onTick(TimerTick event, Emitter<BreathingState> emit) {
@@ -116,28 +121,30 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
     // Update Session Timer
     int newSessionRemaining = state.sessionRemainingSeconds;
     if (state.sessionDurationMinutes != -1) {
-       newSessionRemaining = state.sessionRemainingSeconds - 1;
-       if (newSessionRemaining <= 0) {
-         _tickerSubscription?.cancel();
-         
-         // 1. Emit Completed (triggers UI "DONE", haptics, stop animation)
-         emit(state.copyWith(
-           status: BreathingStatus.completed,
-           sessionRemainingSeconds: 0,
-         ));
+      newSessionRemaining = state.sessionRemainingSeconds - 1;
+      if (newSessionRemaining <= 0) {
+        _tickerSubscription?.cancel();
 
-         // 2. Reset to Default 3 Minutes (triggers UI "READY", reset animation)
-         emit(state.copyWith(
+        // 1. Emit Completed (triggers UI "DONE", haptics, stop animation)
+        emit(
+          state.copyWith(
+            status: BreathingStatus.completed,
+            sessionRemainingSeconds: 0,
+          ),
+        );
+
+        // 2. Reset to Default 3 Minutes (triggers UI "READY", reset animation)
+        emit(
+          state.copyWith(
             status: BreathingStatus.initial,
             sessionDurationMinutes: 3,
             sessionRemainingSeconds: 3 * 60,
-         ));
-         return;
-       }
+          ),
+        );
+        return;
+      }
     }
 
-    emit(state.copyWith(
-      sessionRemainingSeconds: newSessionRemaining,
-    ));
+    emit(state.copyWith(sessionRemainingSeconds: newSessionRemaining));
   }
 }

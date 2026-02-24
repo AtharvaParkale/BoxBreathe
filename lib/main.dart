@@ -25,9 +25,7 @@ class BoxBreatheApp extends StatelessWidget {
         BlocProvider(
           create: (_) => di.sl<BreathingBloc>()..add(LoadBreathingSettings()),
         ),
-        BlocProvider(
-          create: (_) => di.sl<SettingsBloc>()..add(LoadSettings()),
-        ),
+        BlocProvider(create: (_) => di.sl<SettingsBloc>()..add(LoadSettings())),
       ],
       child: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, state) {

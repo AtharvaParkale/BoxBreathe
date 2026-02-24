@@ -28,9 +28,10 @@ class _PremiumScaleButtonState extends State<PremiumScaleButton>
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this, duration: widget.duration);
-    _scaleAnimation = Tween<double>(begin: 1.0, end: widget.pressedScale).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: widget.pressedScale,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -62,10 +63,7 @@ class _PremiumScaleButtonState extends State<PremiumScaleButton>
       onTapDown: _onTapDown,
       onTapUp: _onTapUp,
       onTapCancel: _onTapCancel,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: widget.child,
-      ),
+      child: ScaleTransition(scale: _scaleAnimation, child: widget.child),
     );
   }
 }
@@ -86,7 +84,7 @@ class PremiumIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isEnabled = onTap != null;
-    
+
     return PremiumScaleButton(
       onTap: onTap,
       child: Container(
@@ -110,9 +108,9 @@ class PremiumIconButton extends StatelessWidget {
         child: Icon(
           icon,
           size: 20,
-          color: isEnabled 
-            ? theme.colorScheme.onSurface.withValues(alpha: 0.8)
-            : theme.disabledColor,
+          color: isEnabled
+              ? theme.colorScheme.onSurface.withValues(alpha: 0.8)
+              : theme.disabledColor,
         ),
       ),
     );
@@ -132,7 +130,7 @@ class PremiumPlayButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return PremiumScaleButton(
       onTap: onTap,
       pressedScale: 0.92,

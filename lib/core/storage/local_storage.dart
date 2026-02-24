@@ -21,8 +21,8 @@ class HiveLocalStorage implements LocalStorage {
 
   @override
   dynamic get(String boxName, String key, {dynamic defaultValue}) {
-    // We can't synchronously open box if it's not open, but for simple settings 
-    // we usually open boxes at startup or await. 
+    // We can't synchronously open box if it's not open, but for simple settings
+    // we usually open boxes at startup or await.
     // For this simple app, we'll assume boxes are opened or we await openBox.
     // However, Hive.box(name) throws if not opened.
     // Let's change this to async or ensure box is open.
@@ -31,15 +31,19 @@ class HiveLocalStorage implements LocalStorage {
     if (Hive.isBoxOpen(boxName)) {
       return Hive.box(boxName).get(key, defaultValue: defaultValue);
     } else {
-      // This is blocking/async mismatch. 
+      // This is blocking/async mismatch.
       // Ideally we should make get async or pre-open boxes.
       // Given the requirement "SettingsBloc", we can make it async.
-      throw Exception('Box $boxName not open'); 
+      throw Exception('Box $boxName not open');
     }
   }
-  
+
   // Async get for safety
-  Future<dynamic> getAsync(String boxName, String key, {dynamic defaultValue}) async {
+  Future<dynamic> getAsync(
+    String boxName,
+    String key, {
+    dynamic defaultValue,
+  }) async {
     final box = await Hive.openBox(boxName);
     return box.get(key, defaultValue: defaultValue);
   }

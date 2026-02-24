@@ -17,11 +17,8 @@ class BreathingState extends Equatable {
   });
 
   static BreathingState initial() {
-    return const BreathingState(
-      sessionRemainingSeconds: 3 * 60,
-    );
+    return const BreathingState(sessionRemainingSeconds: 3 * 60);
   }
-
 
   BreathingState copyWith({
     BreathingStatus? status,
@@ -41,9 +38,9 @@ class BreathingState extends Equatable {
 
   @override
   List<Object> get props => [
-        status,
-        mode,
-        sessionDurationMinutes,
-        sessionRemainingSeconds,
-      ];
+    status,
+    mode,
+    sessionDurationMinutes,
+    sessionRemainingSeconds,
+  ];
 }

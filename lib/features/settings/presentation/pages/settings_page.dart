@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../injection_container.dart';
+import '../../../../core/services/sound_service.dart';
 import '../bloc/settings_bloc.dart';
 import '../bloc/settings_event_state.dart';
 
@@ -14,13 +16,14 @@ class SettingsPage extends StatelessWidget {
         title: const Text('Settings'),
         backgroundColor: Colors.transparent,
         leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-            onPressed: () => Navigator.pop(context)),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: BlocBuilder<SettingsBloc, SettingsState>(
         builder: (context, state) {
           final settings = state.settings;
-          
+
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
@@ -28,60 +31,116 @@ class SettingsPage extends StatelessWidget {
               const SizedBox(height: 12),
               _buildThemeSelector(context, settings),
               const SizedBox(height: 32),
-              
+
               _buildSectionHeader(context, 'PREFERENCES'),
               const SizedBox(height: 12),
               _buildGroupContainer(
                 context,
                 children: [
-                   SwitchListTile(
-                     contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                     title: const Text('Sounds'),
-                     subtitle: const Text('Play soft sounds during breathing'),
-                     value: settings.isSoundEnabled,
-                     activeTrackColor: Theme.of(context).primaryColor,
-                     onChanged: (value) {
-                       context.read<SettingsBloc>().add(ToggleSound(value));
-                     },
-                   ),
-                   _buildDivider(context),
-                   SwitchListTile(
-                     contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                     title: const Text('Haptics'),
-                     subtitle: const Text('Vibrate on phase changes'),
-                     value: settings.isHapticEnabled,
-                     activeTrackColor: Theme.of(context).primaryColor,
-                     onChanged: (value) {
-                       context.read<SettingsBloc>().add(ToggleHaptic(value));
-                     },
-                   ),
+                  SwitchListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 4,
+                    ),
+                    title: const Text('Sounds'),
+                    subtitle: const Text('Play soft sounds during breathing'),
+                    value: settings.isSoundEnabled,
+                    activeTrackColor: Theme.of(context).primaryColor,
+                    onChanged: (value) {
+                      context.read<SettingsBloc>().add(ToggleSound(value));
+                    },
+                  ),
+                  _buildDivider(context),
+                  SwitchListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 4,
+                    ),
+                    title: const Text('Haptics'),
+                    subtitle: const Text('Vibrate on phase changes'),
+                    value: settings.isHapticEnabled,
+                    activeTrackColor: Theme.of(context).primaryColor,
+                    onChanged: (value) {
+                      context.read<SettingsBloc>().add(ToggleHaptic(value));
+                    },
+                  ),
                 ],
               ),
-               
-               const SizedBox(height: 32),
-               _buildSectionHeader(context, 'REMINDERS'),
-               const SizedBox(height: 12),
-               _buildGroupContainer(
-                 context,
-                 children: [
-                   ListTile(
-                     contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                     title: const Text('Daily Reminder'),
-                     subtitle: Text(settings.dailyReminderHour == -1 
-                         ? 'Off' 
-                         : _formatTime(settings.dailyReminderHour, settings.dailyReminderMinute)),
-                     trailing: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                            color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(8)
-                        ),
-                        child: const Icon(Icons.access_time_rounded, size: 20)
-                     ),
-                     onTap: () => _pickTime(context, settings),
-                   ),
-                 ],
-               ),
+
+              if (settings.isSoundEnabled) ...[
+                const SizedBox(height: 32),
+                _buildSectionHeader(context, 'SOUND CUE'),
+                const SizedBox(height: 12),
+                _buildGroupContainer(
+                  context,
+                  children: [
+                    _buildSoundCueOption(
+                      context,
+                      settings,
+                      'Soft Bell',
+                      'bell',
+                    ),
+                    _buildDivider(context),
+                    _buildSoundCueOption(
+                      context,
+                      settings,
+                      'Wooden Click',
+                      'wood',
+                    ),
+                    _buildDivider(context),
+                    _buildSoundCueOption(context, settings, 'Air Tone', 'air'),
+                    _buildDivider(context),
+                    _buildSoundCueOption(
+                      context,
+                      settings,
+                      'Gentle Chime',
+                      'chime',
+                    ),
+                    _buildDivider(context),
+                    _buildSoundCueOption(
+                      context,
+                      settings,
+                      'Digital Tick',
+                      'tick',
+                    ),
+                  ],
+                ),
+              ],
+
+              const SizedBox(height: 32),
+              _buildSectionHeader(context, 'REMINDERS'),
+              const SizedBox(height: 12),
+              _buildGroupContainer(
+                context,
+                children: [
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    title: const Text('Daily Reminder'),
+                    subtitle: Text(
+                      settings.dailyReminderHour == -1
+                          ? 'Off'
+                          : _formatTime(
+                              settings.dailyReminderHour,
+                              settings.dailyReminderMinute,
+                            ),
+                    ),
+                    trailing: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surface.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.access_time_rounded, size: 20),
+                    ),
+                    onTap: () => _pickTime(context, settings),
+                  ),
+                ],
+              ),
             ],
           );
         },
@@ -89,34 +148,32 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildGroupContainer(BuildContext context, {required List<Widget> children}) {
-      return Container(
-          decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(24),
-          ),
-          child: Column(
-              children: children,
-          ),
-      );
+  Widget _buildGroupContainer(
+    BuildContext context, {
+    required List<Widget> children,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(children: children),
+    );
   }
 
   Widget _buildDivider(BuildContext context) {
-      return Divider(
-          height: 1, 
-          indent: 20, 
-          endIndent: 20, 
-          color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.2)
-      );
+    return Divider(
+      height: 1,
+      indent: 20,
+      endIndent: 20,
+      color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.2),
+    );
   }
 
   Widget _buildSectionHeader(BuildContext context, String title) {
     return Padding(
       padding: const EdgeInsets.only(left: 12),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.labelSmall,
-      ),
+      child: Text(title, style: Theme.of(context).textTheme.labelSmall),
     );
   }
 
@@ -128,98 +185,159 @@ class SettingsPage extends StatelessWidget {
         itemCount: AppThemeMode.values.length,
         separatorBuilder: (_, index) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
-            final mode = AppThemeMode.values[index];
-            final isSelected = settings.themeMode == mode;
-            
-            return GestureDetector(
-                onTap: () => context.read<SettingsBloc>().add(ChangeTheme(mode)),
-                child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    width: isSelected ? 60 : 50,
-                    height: isSelected ? 60 : 50,
-                    decoration: BoxDecoration(
-                        color: _getThemeColor(mode),
-                        shape: BoxShape.circle,
-                        border: isSelected 
-                            ? Border.all(color: Theme.of(context).primaryColor, width: 2)
-                            : Border.all(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.1), width: 1),
-                        boxShadow: isSelected ? [
-                            BoxShadow(
-                                color: _getThemeColor(mode).withValues(alpha: 0.4),
-                                blurRadius: 10,
-                                spreadRadius: 2,
-                            )
-                        ] : [],
-                    ),
-                    child: isSelected 
-                        ? Icon(Icons.check, color: _getContrastColor(mode), size: 18) 
-                        : null,
-                ),
-            );
+          final mode = AppThemeMode.values[index];
+          final isSelected = settings.themeMode == mode;
+
+          return GestureDetector(
+            onTap: () => context.read<SettingsBloc>().add(ChangeTheme(mode)),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              width: isSelected ? 60 : 50,
+              height: isSelected ? 60 : 50,
+              decoration: BoxDecoration(
+                color: _getThemeColor(mode),
+                shape: BoxShape.circle,
+                border: isSelected
+                    ? Border.all(
+                        color: Theme.of(context).primaryColor,
+                        width: 2,
+                      )
+                    : Border.all(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.1),
+                        width: 1,
+                      ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: _getThemeColor(mode).withValues(alpha: 0.4),
+                          blurRadius: 10,
+                          spreadRadius: 2,
+                        ),
+                      ]
+                    : [],
+              ),
+              child: isSelected
+                  ? Icon(Icons.check, color: _getContrastColor(mode), size: 18)
+                  : null,
+            ),
+          );
         },
       ),
     );
   }
 
+  Widget _buildSoundCueOption(
+    BuildContext context,
+    dynamic settings,
+    String title,
+    String value,
+  ) {
+    final isSelected = settings.soundCue == value;
+    final primaryColor = Theme.of(context).primaryColor;
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          color: isSelected ? primaryColor : null,
+        ),
+      ),
+      trailing: isSelected
+          ? Icon(Icons.check_circle_rounded, color: primaryColor)
+          : const Icon(Icons.circle_outlined, size: 24, color: Colors.white24),
+      onTap: () {
+        context.read<SettingsBloc>().add(ChangeSoundCue(value));
+        sl<SoundService>().playPhaseSound(value);
+      },
+    );
+  }
+
   Color _getContrastColor(AppThemeMode mode) {
-      switch (mode) {
-          case AppThemeMode.midnight: return Colors.white;
-          case AppThemeMode.ocean: return Colors.white;
-          case AppThemeMode.forest: return Colors.white;
-          case AppThemeMode.lavender: return Colors.black;
-          case AppThemeMode.sand: return Colors.black;
-          case AppThemeMode.minimalLight: return Colors.black;
-          case AppThemeMode.sunset: return Colors.white;
-          case AppThemeMode.bamboo: return Colors.black;
-          case AppThemeMode.cedar: return Colors.white;
-          case AppThemeMode.glacier: return Colors.black;
-      }
+    switch (mode) {
+      case AppThemeMode.midnight:
+        return Colors.white;
+      case AppThemeMode.ocean:
+        return Colors.white;
+      case AppThemeMode.forest:
+        return Colors.white;
+      case AppThemeMode.lavender:
+        return Colors.black;
+      case AppThemeMode.sand:
+        return Colors.black;
+      case AppThemeMode.minimalLight:
+        return Colors.black;
+      case AppThemeMode.sunset:
+        return Colors.white;
+      case AppThemeMode.bamboo:
+        return Colors.black;
+      case AppThemeMode.cedar:
+        return Colors.white;
+      case AppThemeMode.glacier:
+        return Colors.black;
+    }
   }
 
   Color _getThemeColor(AppThemeMode mode) {
-      switch (mode) {
-        case AppThemeMode.midnight: return const Color(0xFF141416); // Premium Charcoal
-        case AppThemeMode.ocean: return const Color(0xFF0F172A);
-        case AppThemeMode.forest: return const Color(0xFF0D1811);
-        case AppThemeMode.lavender: return const Color(0xFFFDFBFD);
-        case AppThemeMode.sand: return const Color(0xFFFDFCF8);
-        case AppThemeMode.minimalLight: return const Color(0xFFF9FAFB); // Premium Off-White
-        case AppThemeMode.sunset: return const Color(0xFF18151E);
-        case AppThemeMode.bamboo: return const Color(0xFFF4F9F1);
-        case AppThemeMode.cedar: return const Color(0xFF1D1816);
-        case AppThemeMode.glacier: return const Color(0xFFF0F9FA);
-      }
+    switch (mode) {
+      case AppThemeMode.midnight:
+        return const Color(0xFF141416); // Premium Charcoal
+      case AppThemeMode.ocean:
+        return const Color(0xFF0F172A);
+      case AppThemeMode.forest:
+        return const Color(0xFF0D1811);
+      case AppThemeMode.lavender:
+        return const Color(0xFFFDFBFD);
+      case AppThemeMode.sand:
+        return const Color(0xFFFDFCF8);
+      case AppThemeMode.minimalLight:
+        return const Color(0xFFF9FAFB); // Premium Off-White
+      case AppThemeMode.sunset:
+        return const Color(0xFF18151E);
+      case AppThemeMode.bamboo:
+        return const Color(0xFFF4F9F1);
+      case AppThemeMode.cedar:
+        return const Color(0xFF1D1816);
+      case AppThemeMode.glacier:
+        return const Color(0xFFF0F9FA);
+    }
   }
 
-
-
   String _formatTime(int hour, int minute) {
-      final period = hour >= 12 ? 'PM' : 'AM';
-      final h = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
-      final m = minute.toString().padLeft(2, '0');
-      return '$h:$m $period';
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final h = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+    final m = minute.toString().padLeft(2, '0');
+    return '$h:$m $period';
   }
 
   Future<void> _pickTime(BuildContext context, dynamic settings) async {
-       final TimeOfDay? picked = await showTimePicker(
-         context: context,
-         initialTime: settings.dailyReminderHour == -1 
-             ? const TimeOfDay(hour: 9, minute: 0)
-             : TimeOfDay(hour: settings.dailyReminderHour, minute: settings.dailyReminderMinute),
-         builder: (context, child) {
-             return Theme(
-                 data: Theme.of(context).copyWith(
-                     timePickerTheme: TimePickerThemeData(
-                         dialBackgroundColor: Theme.of(context).colorScheme.surface,
-                     )
-                 ),
-                 child: child!,
-             );
-         }
-       );
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: settings.dailyReminderHour == -1
+          ? const TimeOfDay(hour: 9, minute: 0)
+          : TimeOfDay(
+              hour: settings.dailyReminderHour,
+              minute: settings.dailyReminderMinute,
+            ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            timePickerTheme: TimePickerThemeData(
+              dialBackgroundColor: Theme.of(context).colorScheme.surface,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
 
-       if (picked != null && context.mounted) {
-         context.read<SettingsBloc>().add(SetDailyReminder(picked.hour, picked.minute));
-       }
+    if (picked != null && context.mounted) {
+      context.read<SettingsBloc>().add(
+        SetDailyReminder(picked.hour, picked.minute),
+      );
+    }
   }
 }

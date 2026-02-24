@@ -134,10 +134,7 @@ class AppTheme {
     required Color text,
     required Color subtext,
   }) {
-    final baseTextTheme = _textFont.apply(
-      bodyColor: text,
-      displayColor: text,
-    );
+    final baseTextTheme = _textFont.apply(bodyColor: text, displayColor: text);
 
     return ThemeData(
       useMaterial3: true,
@@ -147,7 +144,7 @@ class AppTheme {
       cardColor: surface,
       dividerColor: Colors.transparent, // No dividers for clean look
       splashFactory: NoSplash.splashFactory, // Remove default ripple
-      
+
       colorScheme: ColorScheme(
         brightness: brightness,
         primary: primary,
@@ -179,7 +176,9 @@ class AppTheme {
           fontWeight: FontWeight.w100, // Very thin timer
           letterSpacing: 1.0,
           height: 1.1,
-          fontFeatures: [const FontFeature.tabularFigures()], // Monospace numbers
+          fontFeatures: [
+            const FontFeature.tabularFigures(),
+          ], // Monospace numbers
         ),
         titleLarge: baseTextTheme.titleLarge?.copyWith(
           fontSize: 20,
@@ -212,10 +211,7 @@ class AppTheme {
         ),
       ),
 
-      iconTheme: IconThemeData(
-        color: text.withValues(alpha: 0.9),
-        size: 24,
-      ),
+      iconTheme: IconThemeData(color: text.withValues(alpha: 0.9), size: 24),
 
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
@@ -239,7 +235,7 @@ class AppTheme {
           splashFactory: NoSplash.splashFactory,
         ),
       ),
-      
+
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: secondary,
         foregroundColor: text,
@@ -256,15 +252,16 @@ class AppTheme {
         textColor: text,
         iconColor: subtext,
       ),
-      
+
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) return primary;
           return subtext;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return primary.withValues(alpha: 0.2);
-          return  secondary;
+          if (states.contains(WidgetState.selected))
+            return primary.withValues(alpha: 0.2);
+          return secondary;
         }),
         trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
       ),
@@ -280,4 +277,3 @@ class AppTheme {
     );
   }
 }
-

@@ -10,13 +10,12 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   final GetSettings getSettings;
   final SaveSettings saveSettings;
 
-  SettingsBloc({
-    required this.getSettings,
-    required this.saveSettings,
-  }) : super(const SettingsState()) {
+  SettingsBloc({required this.getSettings, required this.saveSettings})
+    : super(const SettingsState()) {
     on<LoadSettings>(_onLoadSettings);
     on<ChangeTheme>(_onChangeTheme);
     on<ToggleSound>(_onToggleSound);
+    on<ChangeSoundCue>(_onChangeSoundCue);
     on<ToggleHaptic>(_onToggleHaptic);
     on<SetDailyReminder>(_onSetDailyReminder);
     on<CancelDailyReminder>(_onCancelDailyReminder);
@@ -46,7 +45,18 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     ToggleSound event,
     Emitter<SettingsState> emit,
   ) async {
-    final newSettings = state.settings.copyWith(isSoundEnabled: event.isEnabled);
+    final newSettings = state.settings.copyWith(
+      isSoundEnabled: event.isEnabled,
+    );
+    await saveSettings(newSettings);
+    emit(state.copyWith(settings: newSettings));
+  }
+
+  Future<void> _onChangeSoundCue(
+    ChangeSoundCue event,
+    Emitter<SettingsState> emit,
+  ) async {
+    final newSettings = state.settings.copyWith(soundCue: event.soundCue);
     await saveSettings(newSettings);
     emit(state.copyWith(settings: newSettings));
   }
@@ -55,7 +65,9 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     ToggleHaptic event,
     Emitter<SettingsState> emit,
   ) async {
-    final newSettings = state.settings.copyWith(isHapticEnabled: event.isEnabled);
+    final newSettings = state.settings.copyWith(
+      isHapticEnabled: event.isEnabled,
+    );
     await saveSettings(newSettings);
     emit(state.copyWith(settings: newSettings));
   }
@@ -70,7 +82,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     );
     await saveSettings(newSettings);
     emit(state.copyWith(settings: newSettings));
-    
+
     NotificationHelper.scheduleDailyReminder(
       TimeOfDay(hour: event.hour, minute: event.minute),
     );
@@ -86,7 +98,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     );
     await saveSettings(newSettings);
     emit(state.copyWith(settings: newSettings));
-    
+
     NotificationHelper.cancelReminders();
   }
 }

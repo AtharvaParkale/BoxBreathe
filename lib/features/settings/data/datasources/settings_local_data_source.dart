@@ -12,6 +12,7 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
   final Box box;
   static const String keyTheme = 'settings_theme';
   static const String keySound = 'settings_sound';
+  static const String keySoundCue = 'settings_sound_cue';
   static const String keyHaptic = 'settings_haptic';
   static const String keyReminderHour = 'settings_reminder_hour';
   static const String keyReminderMinute = 'settings_reminder_minute';
@@ -23,16 +24,19 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
     try {
       final themeIndex = box.get(keyTheme, defaultValue: 5) as int;
       final sound = box.get(keySound, defaultValue: true) as bool;
+      final soundCue = box.get(keySoundCue, defaultValue: 'bell') as String;
       final haptic = box.get(keyHaptic, defaultValue: true) as bool;
       final reminderHour = box.get(keyReminderHour, defaultValue: -1) as int;
       final reminderMinute = box.get(keyReminderMinute, defaultValue: 0) as int;
 
-      final themeMode = AppThemeMode.values.elementAtOrNull(themeIndex) ??
+      final themeMode =
+          AppThemeMode.values.elementAtOrNull(themeIndex) ??
           AppThemeMode.midnight;
 
       return Settings(
         themeMode: themeMode,
         isSoundEnabled: sound,
+        soundCue: soundCue,
         isHapticEnabled: haptic,
         dailyReminderHour: reminderHour,
         dailyReminderMinute: reminderMinute,
@@ -47,6 +51,7 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
     try {
       await box.put(keyTheme, settings.themeMode.index);
       await box.put(keySound, settings.isSoundEnabled);
+      await box.put(keySoundCue, settings.soundCue);
       await box.put(keyHaptic, settings.isHapticEnabled);
       await box.put(keyReminderHour, settings.dailyReminderHour);
       await box.put(keyReminderMinute, settings.dailyReminderMinute);
@@ -57,8 +62,8 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
 }
 
 extension ListGetOrNull on List {
-    dynamic elementAtOrNull(int index) {
-        if (index < 0 || index >= length) return null;
-        return this[index];
-    }
+  dynamic elementAtOrNull(int index) {
+    if (index < 0 || index >= length) return null;
+    return this[index];
+  }
 }
