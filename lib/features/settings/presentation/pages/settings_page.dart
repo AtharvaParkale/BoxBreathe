@@ -74,35 +74,25 @@ class SettingsPage extends StatelessWidget {
                 _buildGroupContainer(
                   context,
                   children: [
-                    _buildSoundCueOption(
-                      context,
-                      settings,
-                      'Soft Bell',
-                      'bell',
-                    ),
+                    _buildSoundCueOption(context, settings, 'Soft Bell', 'bell'),
                     _buildDivider(context),
-                    _buildSoundCueOption(
-                      context,
-                      settings,
-                      'Wooden Click',
-                      'wood',
-                    ),
+                    _buildSoundCueOption(context, settings, 'Wooden Click', 'wood'),
                     _buildDivider(context),
                     _buildSoundCueOption(context, settings, 'Air Tone', 'air'),
                     _buildDivider(context),
-                    _buildSoundCueOption(
-                      context,
-                      settings,
-                      'Gentle Chime',
-                      'chime',
-                    ),
+                    _buildSoundCueOption(context, settings, 'Gentle Chime', 'chime'),
                     _buildDivider(context),
-                    _buildSoundCueOption(
-                      context,
-                      settings,
-                      'Digital Tick',
-                      'tick',
-                    ),
+                    _buildSoundCueOption(context, settings, 'Digital Tick', 'tick'),
+                    _buildDivider(context),
+                    _buildSoundCueOption(context, settings, 'Tibetan Bowl', 'bowl'),
+                    _buildDivider(context),
+                    _buildSoundCueOption(context, settings, 'Deep Gong', 'gong'),
+                    _buildDivider(context),
+                    _buildSoundCueOption(context, settings, 'Crystal Bowl', 'crystal'),
+                    _buildDivider(context),
+                    _buildSoundCueOption(context, settings, 'Rain Drop', 'rain'),
+                    _buildDivider(context),
+                    _buildSoundCueOption(context, settings, 'Ocean Wave', 'ocean'),
                   ],
                 ),
               ],
@@ -130,10 +120,12 @@ class SettingsPage extends StatelessWidget {
                     trailing: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.surface.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(8),
+                        color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06),
+                          width: 1,
+                        ),
                       ),
                       child: const Icon(Icons.access_time_rounded, size: 20),
                     ),
@@ -156,6 +148,10 @@ class SettingsPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
+          width: 1,
+        ),
       ),
       child: Column(children: children),
     );
@@ -248,7 +244,11 @@ class SettingsPage extends StatelessWidget {
       ),
       trailing: isSelected
           ? Icon(Icons.check_circle_rounded, color: primaryColor)
-          : const Icon(Icons.circle_outlined, size: 24, color: Colors.white24),
+          : Icon(
+              Icons.circle_outlined,
+              size: 24,
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+            ),
       onTap: () {
         context.read<SettingsBloc>().add(ChangeSoundCue(value));
         sl<SoundService>().playPhaseSound(value);

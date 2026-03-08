@@ -94,13 +94,13 @@ class PremiumIconButton extends StatelessWidget {
           color: theme.colorScheme.surface,
           shape: BoxShape.circle,
           border: Border.all(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
@@ -140,13 +140,25 @@ class PremiumPlayButton extends StatelessWidget {
         width: 88,
         height: 88,
         decoration: BoxDecoration(
-          color: theme.colorScheme.primary, // High contrast
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color.lerp(theme.colorScheme.primary, Colors.white, 0.18)!,
+              theme.colorScheme.primary,
+            ],
+          ),
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: theme.colorScheme.primary.withValues(alpha: 0.25),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
+              color: theme.colorScheme.primary.withValues(alpha: 0.35),
+              blurRadius: 28,
+              offset: const Offset(0, 10),
+            ),
+            BoxShadow(
+              color: theme.colorScheme.primary.withValues(alpha: 0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),

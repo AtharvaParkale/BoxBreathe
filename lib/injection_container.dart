@@ -59,7 +59,9 @@ Future<void> init() async {
 
   // Core
   await NotificationHelper.init();
-  sl.registerLazySingleton(() => SoundService());
+  // Eagerly register and kick off audio pre-loading immediately at app start
+  final soundService = SoundService();
+  sl.registerSingleton<SoundService>(soundService);
 
   // External
   await Hive.initFlutter();

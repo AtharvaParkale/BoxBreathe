@@ -355,6 +355,12 @@ class _BreathingPageState extends State<BreathingPage>
                                             blurRadius: 40 + ambientGlow,
                                             spreadRadius: 10 + ambientGlow,
                                           ),
+                                          BoxShadow(
+                                            color: theme.colorScheme.primary
+                                                .withValues(alpha: 0.07),
+                                            blurRadius: 70 + ambientGlow * 2,
+                                            spreadRadius: 20 + ambientGlow,
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -367,10 +373,19 @@ class _BreathingPageState extends State<BreathingPage>
                                       width: 220,
                                       height: 220,
                                       decoration: BoxDecoration(
-                                        color: theme.colorScheme.primary
-                                            .withValues(
-                                              alpha: aliveOpacity,
-                                            ), // Dynamic Opacity
+                                        gradient: RadialGradient(
+                                          center: const Alignment(-0.3, -0.4),
+                                          radius: 0.85,
+                                          colors: [
+                                            Color.lerp(
+                                              theme.colorScheme.primary,
+                                              Colors.white,
+                                              0.25,
+                                            )!.withValues(alpha: aliveOpacity),
+                                            theme.colorScheme.primary
+                                                .withValues(alpha: aliveOpacity),
+                                          ],
+                                        ),
                                         shape: BoxShape.circle,
                                         boxShadow: [
                                           // Inner depth/glow
@@ -578,10 +593,21 @@ class _BreathingPageState extends State<BreathingPage>
         expand: false,
         builder: (context, scrollController) {
           return Container(
-            padding: const EdgeInsets.fromLTRB(24, 32, 24, 0),
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
                 Text(
                   "Breathing Mode",
                   style: Theme.of(context).textTheme.titleLarge,
@@ -634,10 +660,21 @@ class _BreathingPageState extends State<BreathingPage>
     showModalBottomSheet(
       context: context,
       builder: (_) => Container(
-        padding: const EdgeInsets.fromLTRB(24, 32, 24, 48),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 48),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
             Text("Duration", style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 24),
             ...durations.map(
