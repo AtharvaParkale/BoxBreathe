@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../injection_container.dart';
 import '../../../../core/services/sound_service.dart';
 import '../bloc/settings_bloc.dart';
@@ -27,11 +26,6 @@ class SettingsPage extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              _buildSectionHeader(context, 'APPEARANCE'),
-              const SizedBox(height: 12),
-              _buildThemeSelector(context, settings),
-              const SizedBox(height: 32),
-
               _buildSectionHeader(context, 'PREFERENCES'),
               const SizedBox(height: 12),
               _buildGroupContainer(
@@ -120,10 +114,10 @@ class SettingsPage extends StatelessWidget {
                     trailing: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.4),
+                        color: Colors.white.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.06),
+                          color: Colors.white.withValues(alpha: 0.06),
                           width: 1,
                         ),
                       ),
@@ -162,7 +156,7 @@ class SettingsPage extends StatelessWidget {
       height: 1,
       indent: 20,
       endIndent: 20,
-      color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.2),
+      color: Colors.white.withValues(alpha: 0.08),
     );
   }
 
@@ -170,57 +164,6 @@ class SettingsPage extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(left: 12),
       child: Text(title, style: Theme.of(context).textTheme.labelSmall),
-    );
-  }
-
-  Widget _buildThemeSelector(BuildContext context, dynamic settings) {
-    return SizedBox(
-      height: 80,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: AppThemeMode.values.length,
-        separatorBuilder: (_, index) => const SizedBox(width: 16),
-        itemBuilder: (context, index) {
-          final mode = AppThemeMode.values[index];
-          final isSelected = settings.themeMode == mode;
-
-          return GestureDetector(
-            onTap: () => context.read<SettingsBloc>().add(ChangeTheme(mode)),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: isSelected ? 60 : 50,
-              height: isSelected ? 60 : 50,
-              decoration: BoxDecoration(
-                color: _getThemeColor(mode),
-                shape: BoxShape.circle,
-                border: isSelected
-                    ? Border.all(
-                        color: Theme.of(context).primaryColor,
-                        width: 2,
-                      )
-                    : Border.all(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.1),
-                        width: 1,
-                      ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: _getThemeColor(mode).withValues(alpha: 0.4),
-                          blurRadius: 10,
-                          spreadRadius: 2,
-                        ),
-                      ]
-                    : [],
-              ),
-              child: isSelected
-                  ? Icon(Icons.check, color: _getContrastColor(mode), size: 18)
-                  : null,
-            ),
-          );
-        },
-      ),
     );
   }
 
@@ -254,56 +197,6 @@ class SettingsPage extends StatelessWidget {
         sl<SoundService>().playPhaseSound(value);
       },
     );
-  }
-
-  Color _getContrastColor(AppThemeMode mode) {
-    switch (mode) {
-      case AppThemeMode.midnight:
-        return Colors.white;
-      case AppThemeMode.ocean:
-        return Colors.white;
-      case AppThemeMode.forest:
-        return Colors.white;
-      case AppThemeMode.lavender:
-        return Colors.black;
-      case AppThemeMode.sand:
-        return Colors.black;
-      case AppThemeMode.minimalLight:
-        return Colors.black;
-      case AppThemeMode.sunset:
-        return Colors.white;
-      case AppThemeMode.bamboo:
-        return Colors.black;
-      case AppThemeMode.cedar:
-        return Colors.white;
-      case AppThemeMode.glacier:
-        return Colors.black;
-    }
-  }
-
-  Color _getThemeColor(AppThemeMode mode) {
-    switch (mode) {
-      case AppThemeMode.midnight:
-        return const Color(0xFF141416); // Premium Charcoal
-      case AppThemeMode.ocean:
-        return const Color(0xFF0F172A);
-      case AppThemeMode.forest:
-        return const Color(0xFF0D1811);
-      case AppThemeMode.lavender:
-        return const Color(0xFFFDFBFD);
-      case AppThemeMode.sand:
-        return const Color(0xFFFDFCF8);
-      case AppThemeMode.minimalLight:
-        return const Color(0xFFF9FAFB); // Premium Off-White
-      case AppThemeMode.sunset:
-        return const Color(0xFF18151E);
-      case AppThemeMode.bamboo:
-        return const Color(0xFFF4F9F1);
-      case AppThemeMode.cedar:
-        return const Color(0xFF1D1816);
-      case AppThemeMode.glacier:
-        return const Color(0xFFF0F9FA);
-    }
   }
 
   String _formatTime(int hour, int minute) {

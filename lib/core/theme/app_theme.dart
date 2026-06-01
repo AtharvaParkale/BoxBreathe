@@ -18,112 +18,17 @@ class AppTheme {
   // Use Inter for that clean, premium look
   static final _textFont = GoogleFonts.interTextTheme();
 
-  static ThemeData getTheme(AppThemeMode mode) {
-    switch (mode) {
-      case AppThemeMode.midnight:
-        return _buildTheme(
-          brightness: Brightness.dark,
-          // Premium Charcoal
-          background: const Color(0xFF141416),
-          surface: const Color(0xFF232326),
-          primary: const Color(0xFFFFFFFF),
-          secondary: const Color(0xFF2C2C2E),
-          text: const Color(0xFFFFFFFF),
-          subtext: const Color(0xFF8E8E93),
-        );
-      case AppThemeMode.ocean:
-        return _buildTheme(
-          brightness: Brightness.dark,
-          background: const Color(0xFF0F172A),
-          surface: const Color(0xFF1E293B),
-          primary: const Color(0xFFE2E8F0),
-          secondary: const Color(0xFF334155),
-          text: const Color(0xFFF8FAFC),
-          subtext: const Color(0xFF94A3B8),
-        );
-      case AppThemeMode.forest:
-        return _buildTheme(
-          brightness: Brightness.dark,
-          background: const Color(0xFF0D1811),
-          surface: const Color(0xFF1A2F23),
-          primary: const Color(0xFFE6F4EA),
-          secondary: const Color(0xFF2D4F3B),
-          text: const Color(0xFFF1F8E9),
-          subtext: const Color(0xFF81C784),
-        );
-      case AppThemeMode.lavender:
-        return _buildTheme(
-          brightness: Brightness.light,
-          background: const Color(0xFFFDFBFD),
-          surface: const Color(0xFFF3E5F5), // Very light purple
-          primary: const Color(0xFF4A148C),
-          secondary: const Color(0xFFE1BEE7),
-          text: const Color(0xFF2D1F35),
-          subtext: const Color(0xFF7B6685),
-        );
-      case AppThemeMode.sand:
-        return _buildTheme(
-          brightness: Brightness.light,
-          background: const Color(0xFFFDFCF8),
-          surface: const Color(0xFFF4F1EA),
-          primary: const Color(0xFF5D4037),
-          secondary: const Color(0xFFE6DCCD),
-          text: const Color(0xFF4E342E),
-          subtext: const Color(0xFF8D6E63),
-        );
-      case AppThemeMode.minimalLight:
-        return _buildTheme(
-          brightness: Brightness.light,
-          // Premium Off-White
-          background: const Color(0xFFF9FAFB),
-          surface: const Color(0xFFFFFFFF),
-          primary: const Color(0xFF111827),
-          secondary: const Color(0xFFF3F4F6),
-          text: const Color(0xFF111827),
-          subtext: const Color(0xFF6B7280),
-        );
-      case AppThemeMode.sunset:
-        return _buildTheme(
-          brightness: Brightness.dark,
-          background: const Color(0xFF18151E),
-          surface: const Color(0xFF2A2438),
-          primary: const Color(0xFFFF9E80), // Soft Coral
-          secondary: const Color(0xFF4527A0),
-          text: const Color(0xFFFFE0B2),
-          subtext: const Color(0xFFB39DDB),
-        );
-      case AppThemeMode.bamboo:
-        return _buildTheme(
-          brightness: Brightness.light,
-          background: const Color(0xFFF4F9F1),
-          surface: const Color(0xFFE5F0DB),
-          primary: const Color(0xFF33691E), // Deep Green
-          secondary: const Color(0xFFAED581),
-          text: const Color(0xFF1B5E20),
-          subtext: const Color(0xFF558B2F),
-        );
-      case AppThemeMode.cedar:
-        return _buildTheme(
-          brightness: Brightness.dark,
-          background: const Color(0xFF1D1816),
-          surface: const Color(0xFF3E2D27),
-          primary: const Color(0xFFFFCCBC), // Peach
-          secondary: const Color(0xFF5D4037),
-          text: const Color(0xFFD7CCC8),
-          subtext: const Color(0xFFA1887F),
-        );
-      case AppThemeMode.glacier:
-        return _buildTheme(
-          brightness: Brightness.light,
-          background: const Color(0xFFF0F9FA),
-          surface: const Color(0xFFD3EEF3),
-          primary: const Color(0xFF006064), // Cyan
-          secondary: const Color(0xFF4DD0E1),
-          text: const Color(0xFF004D40),
-          subtext: const Color(0xFF0097A7),
-        );
-    }
-  }
+  static ThemeData get darkTheme => _buildTheme(
+    brightness: Brightness.dark,
+    background: const Color(0xFF000000),
+    surface: const Color(0xFF0C0C0C),
+    primary: const Color(0xFFFFFFFF),
+    secondary: const Color(0xFF111111),
+    text: const Color(0xFFFFFFFF),
+    subtext: const Color(0xFFFFFFFF),
+  );
+
+  static ThemeData getTheme(AppThemeMode mode) => darkTheme;
 
   static ThemeData _buildTheme({
     required Brightness brightness,
@@ -201,13 +106,13 @@ class AppTheme {
           fontWeight: FontWeight.w400,
           letterSpacing: 0.2,
           height: 1.5,
-          color: text.withValues(alpha: 0.8),
+          color: text.withValues(alpha: 0.60),
         ),
         labelSmall: baseTextTheme.labelSmall?.copyWith(
           fontSize: 11,
           fontWeight: FontWeight.w600,
           letterSpacing: 1.5,
-          color: subtext,
+          color: text.withValues(alpha: 0.35),
         ),
       ),
 
@@ -250,7 +155,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         tileColor: Colors.transparent,
         textColor: text,
-        iconColor: subtext,
+        iconColor: text.withValues(alpha: 0.35),
       ),
 
       switchTheme: SwitchThemeData(
@@ -259,9 +164,10 @@ class AppTheme {
           return subtext;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected))
+          if (states.contains(WidgetState.selected)) {
             return primary.withValues(alpha: 0.2);
-          return secondary;
+          }
+          return Colors.white.withValues(alpha: 0.12);
         }),
         trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
       ),

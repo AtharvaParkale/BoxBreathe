@@ -94,22 +94,15 @@ class PremiumIconButton extends StatelessWidget {
           color: theme.colorScheme.surface,
           shape: BoxShape.circle,
           border: Border.all(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.14),
             width: 1,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
         child: Icon(
           icon,
           size: 20,
           color: isEnabled
-              ? theme.colorScheme.onSurface.withValues(alpha: 0.8)
+              ? theme.colorScheme.onSurface.withValues(alpha: 0.90)
               : theme.disabledColor,
         ),
       ),
@@ -140,25 +133,13 @@ class PremiumPlayButton extends StatelessWidget {
         width: 88,
         height: 88,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color.lerp(theme.colorScheme.primary, Colors.white, 0.18)!,
-              theme.colorScheme.primary,
-            ],
-          ),
+          color: theme.colorScheme.primary,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: theme.colorScheme.primary.withValues(alpha: 0.35),
-              blurRadius: 28,
-              offset: const Offset(0, 10),
-            ),
-            BoxShadow(
-              color: theme.colorScheme.primary.withValues(alpha: 0.15),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: theme.colorScheme.primary.withValues(alpha: 0.25),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
           ],
         ),

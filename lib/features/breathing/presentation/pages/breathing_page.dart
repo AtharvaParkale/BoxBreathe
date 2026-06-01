@@ -46,7 +46,7 @@ class _BreathingPageState extends State<BreathingPage>
     // Glow Controller (Ambient)
     _glowController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 4), // Slower, more calming glow
+      duration: const Duration(seconds: 6), // Slower, more calming glow
     )..repeat(reverse: true);
 
     _glowAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -223,7 +223,7 @@ class _BreathingPageState extends State<BreathingPage>
         return Scaffold(
           body: AnimatedContainer(
             duration: const Duration(seconds: 1),
-            color: theme.colorScheme.surface, // Background transition
+            color: theme.scaffoldBackgroundColor, // Background transition
             child: SafeArea(
               child: Stack(
                 children: [
@@ -250,30 +250,17 @@ class _BreathingPageState extends State<BreathingPage>
                               style: theme.textTheme.labelSmall?.copyWith(
                                 letterSpacing: 2.0,
                                 fontWeight: FontWeight.w600,
+                                color: Colors.white.withValues(alpha: 0.50),
                               ),
                             ),
                             const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.05,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '${_formatDuration(state.mode.inhaleDurationMs)} • ${_formatDuration(state.mode.holdFullDurationMs)} • ${_formatDuration(state.mode.exhaleDurationMs)} • ${_formatDuration(state.mode.holdEmptyDurationMs)}',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withValues(
-                                    alpha: 0.7,
-                                  ),
-                                  letterSpacing: 1.2,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            Text(
+                              '${_formatDuration(state.mode.inhaleDurationMs)} · ${_formatDuration(state.mode.holdFullDurationMs)} · ${_formatDuration(state.mode.exhaleDurationMs)} · ${_formatDuration(state.mode.holdEmptyDurationMs)}',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.28),
+                                letterSpacing: 1.2,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                           ],
@@ -307,27 +294,27 @@ class _BreathingPageState extends State<BreathingPage>
                         String displayLabel = phaseInfo.phase.toUpperCase();
                         double scale = phaseInfo.scale; // 0.6 to 1.0 range
 
-                        // Map scale (0.6 - 1.0) to Opacity (0.8 - 1.0) for "Alive" feel
-                        // (scale - 0.6) / 0.4 gives 0.0 - 1.0
+                        // Map scale (0.6 - 1.0) to Opacity — ghostly at rest, luminous when full
                         double aliveOpacity =
-                            0.7 + (0.3 * ((scale - 0.6) / 0.4));
+                            0.08 + (0.82 * ((scale - 0.6) / 0.4));
 
                         // Override if Countdown
                         if (_isCountingDown) {
                           scale = 0.6;
                           displayLabel = "GET READY";
-                          aliveOpacity = 0.7;
+                          aliveOpacity = 0.65; // keep orb visible for countdown number contrast
                         } else if (state.status == BreathingStatus.initial) {
                           scale = 0.6;
-                          displayLabel = "READY";
-                          aliveOpacity = 0.7;
+                          displayLabel = "breathe.";
+                          aliveOpacity = 0.08;
                         } else if (state.status == BreathingStatus.completed) {
-                          displayLabel = "DONE";
+                          displayLabel = "calm.";
                           scale = 0.6;
+                          aliveOpacity = 0.08;
                         }
 
                         // Soft pulsing glow
-                        double ambientGlow = _glowAnimation.value * 5;
+                        double ambientGlow = _glowAnimation.value * 4;
 
                         return Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -340,6 +327,19 @@ class _BreathingPageState extends State<BreathingPage>
                               child: Stack(
                                 alignment: Alignment.center,
                                 children: [
+                                  // Guide ring — fixed reference circle the orb breathes into
+                                  Container(
+                                    width: 260,
+                                    height: 260,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white.withValues(alpha: 0.08),
+                                        width: 1,
+                                      ),
+                                    ),
+                                  ),
+
                                   // Outer Soft Glow (Breathing)
                                   Transform.scale(
                                     scale: scale * 1.05, // Slightly larger
@@ -352,14 +352,14 @@ class _BreathingPageState extends State<BreathingPage>
                                           BoxShadow(
                                             color: theme.colorScheme.primary
                                                 .withValues(alpha: 0.15),
-                                            blurRadius: 40 + ambientGlow,
-                                            spreadRadius: 10 + ambientGlow,
+                                            blurRadius: 36 + ambientGlow,
+                                            spreadRadius: 6 + ambientGlow,
                                           ),
                                           BoxShadow(
                                             color: theme.colorScheme.primary
                                                 .withValues(alpha: 0.07),
-                                            blurRadius: 70 + ambientGlow * 2,
-                                            spreadRadius: 20 + ambientGlow,
+                                            blurRadius: 60 + ambientGlow * 2,
+                                            spreadRadius: 14 + ambientGlow,
                                           ),
                                         ],
                                       ),
@@ -431,9 +431,11 @@ class _BreathingPageState extends State<BreathingPage>
                                 key: ValueKey(displayLabel),
                                 style: theme.textTheme.displayMedium?.copyWith(
                                   color: theme.colorScheme.onSurface.withValues(
-                                    alpha: 0.7,
+                                    alpha: 0.55,
                                   ),
-                                  letterSpacing: 4.0, // Airy phase text
+                                  letterSpacing: (displayLabel == "breathe." || displayLabel == "calm.")
+                                      ? 1.5
+                                      : 4.0,
                                 ),
                               ),
                             ),
@@ -541,7 +543,7 @@ class _BreathingPageState extends State<BreathingPage>
                                 Icons.headphones_outlined,
                                 size: 12,
                                 color: theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.3,
+                                  alpha: 0.25,
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -549,7 +551,7 @@ class _BreathingPageState extends State<BreathingPage>
                                 "Use earphones for the best experience",
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: theme.colorScheme.onSurface.withValues(
-                                    alpha: 0.3,
+                                    alpha: 0.25,
                                   ),
                                   fontWeight: FontWeight.w400,
                                   fontSize: 10,
