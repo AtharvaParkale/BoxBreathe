@@ -128,11 +128,49 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ],
               ),
+
+              const SizedBox(height: AppSpacing.xxl),
+              const AppSectionHeader(title: 'YOUR PRACTICE'),
+              const SizedBox(height: AppSpacing.sm2),
+              FutureBuilder<SessionHistory>(
+                future: sl<GetHistory>()().then(
+                  (result) => result.fold((_) => SessionHistory.empty, (h) => h),
+                ),
+                builder: (context, snapshot) {
+                  final history = snapshot.data ?? SessionHistory.empty;
+                  return AppGroupContainer(
+                    children: [
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
+                          vertical: AppSpacing.sm,
+                        ),
+                        title: Text(
+                          history.totalSessions == 0
+                              ? 'No sessions yet'
+                              : '${history.totalSessions} session${history.totalSessions == 1 ? '' : 's'} completed',
+                        ),
+                        subtitle: Text(
+                          '${_formatTotalTime(history.totalSeconds)} of breathing, total',
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ],
           );
         },
       ),
     );
+  }
+
+  String _formatTotalTime(int totalSeconds) {
+    final totalMinutes = totalSeconds ~/ 60;
+    if (totalMinutes < 60) return '$totalMinutes min';
+    final hours = totalMinutes ~/ 60;
+    final minutes = totalMinutes % 60;
+    return minutes == 0 ? '${hours}h' : '${hours}h ${minutes}m';
   }
 
   Widget _buildSoundCueOption(
