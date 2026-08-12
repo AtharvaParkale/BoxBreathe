@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../history/domain/usecases/log_completed_session.dart';
 import '../../domain/entities/breathing_settings.dart';
 import '../../domain/usecases/get_breathing_settings.dart';
 import '../../domain/usecases/save_breathing_settings.dart';
@@ -10,11 +11,15 @@ import 'breathing_state.dart';
 class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
   final GetBreathingSettings getSettings;
   final SaveBreathingSettings saveSettings;
+  final LogCompletedSession logCompletedSession;
 
   StreamSubscription<int>? _tickerSubscription;
 
-  BreathingBloc({required this.getSettings, required this.saveSettings})
-    : super(BreathingState.initial()) {
+  BreathingBloc({
+    required this.getSettings,
+    required this.saveSettings,
+    required this.logCompletedSession,
+  }) : super(BreathingState.initial()) {
     on<LoadBreathingSettings>(_onLoadSettings);
     on<StartBreathing>(_onStart);
     on<PauseBreathing>(_onPause);
@@ -124,6 +129,9 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
             sessionRemainingSeconds: 0,
           ),
         );
+        // Only sessions that finish naturally count — logged as a
+        // fire-and-forget side effect, decoupled from the emitted state.
+        unawaited(logCompletedSession(state.sessionDurationMinutes * 60));
         return;
       }
     }

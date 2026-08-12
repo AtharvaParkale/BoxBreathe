@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
-import '../widgets/premium_controls.dart';
+import '../../../../core/widgets/premium_controls.dart';
+import '../widgets/moment_picker.dart';
 import '../bloc/breathing_bloc.dart';
 import '../bloc/breathing_event.dart';
 import '../bloc/breathing_state.dart';
@@ -161,6 +162,14 @@ class _BreathingPageState extends State<BreathingPage>
       // HOLD EMPTY: 0.6
       return (phase: BreathingPhase.holdEmpty, scale: 0.6);
     }
+  }
+
+  void _selectMoment(MomentOption option) {
+    if (_isCountingDown) return;
+    final bloc = context.read<BreathingBloc>();
+    bloc.add(ChangeBreathingMode(option.mode));
+    bloc.add(ChangeSessionDuration(option.durationMinutes));
+    _startSession();
   }
 
   void _startSession() {
@@ -364,7 +373,7 @@ class _BreathingPageState extends State<BreathingPage>
                           displayLabel = "breathe.";
                           aliveOpacity = 0.08;
                         } else if (state.status == BreathingStatus.completed) {
-                          displayLabel = "calm.";
+                          displayLabel = "you're calmer now.";
                           scale = 0.6;
                           aliveOpacity = 0.08;
                         }
@@ -492,12 +501,20 @@ class _BreathingPageState extends State<BreathingPage>
                                   },
                               child: Text(
                                 displayLabel,
+                                textAlign: TextAlign.center,
                                 key: ValueKey(displayLabel),
                                 style: theme.textTheme.displayMedium?.copyWith(
                                   color: theme.colorScheme.onSurface.withValues(
                                     alpha: 0.55,
                                   ),
-                                  letterSpacing: (displayLabel == "breathe." || displayLabel == "calm.")
+                                  fontSize:
+                                      displayLabel == "you're calmer now."
+                                      ? 22
+                                      : null,
+                                  letterSpacing:
+                                      (displayLabel == "breathe." ||
+                                          displayLabel ==
+                                              "you're calmer now.")
                                       ? 1.5
                                       : 4.0,
                                 ),
@@ -586,6 +603,30 @@ class _BreathingPageState extends State<BreathingPage>
                     ),
                   ),
 
+                  // Moment Picker — "What do you need right now?"
+                  Positioned(
+                    bottom: 176,
+                    left: 0,
+                    right: 0,
+                    child: IgnorePointer(
+                      ignoring:
+                          state.status != BreathingStatus.initial ||
+                          _isCountingDown,
+                      child: AnimatedOpacity(
+                        opacity:
+                            (state.status == BreathingStatus.initial &&
+                                !_isCountingDown)
+                            ? 1.0
+                            : 0.0,
+                        duration: const Duration(milliseconds: 300),
+                        child: MomentPicker(
+                          hapticsEnabled: hapticsEnabled,
+                          onSelect: _selectMoment,
+                        ),
+                      ),
+                    ),
+                  ),
+
                   // Earphone Suggestion (Bottom Center)
                   Positioned(
                     bottom: 16,
@@ -658,7 +699,7 @@ class _BreathingPageState extends State<BreathingPage>
       context: context,
       isScrollControlled: true,
       builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.5,
+        initialChildSize: 0.38,
         minChildSize: 0.3,
         maxChildSize: 0.8,
         expand: false,

@@ -10,17 +10,21 @@ import 'package:box_breathe/features/breathing/domain/usecases/save_breathing_se
 import 'package:box_breathe/features/breathing/presentation/bloc/breathing_bloc.dart';
 import 'package:box_breathe/features/breathing/presentation/bloc/breathing_event.dart';
 import 'package:box_breathe/features/breathing/presentation/bloc/breathing_state.dart';
+import 'package:box_breathe/features/history/domain/usecases/log_completed_session.dart';
 
 class MockGetBreathingSettings extends Mock implements GetBreathingSettings {}
 
 class MockSaveBreathingSettings extends Mock
     implements SaveBreathingSettings {}
 
+class MockLogCompletedSession extends Mock implements LogCompletedSession {}
+
 class FakeBreathingSettings extends Fake implements BreathingSettings {}
 
 void main() {
   late MockGetBreathingSettings getSettings;
   late MockSaveBreathingSettings saveSettings;
+  late MockLogCompletedSession logCompletedSession;
 
   setUpAll(() {
     registerFallbackValue(FakeBreathingSettings());
@@ -29,13 +33,20 @@ void main() {
   setUp(() {
     getSettings = MockGetBreathingSettings();
     saveSettings = MockSaveBreathingSettings();
+    logCompletedSession = MockLogCompletedSession();
     when(
       () => saveSettings(any()),
     ).thenAnswer((_) async => const Right(null));
+    when(
+      () => logCompletedSession(any()),
+    ).thenAnswer((_) async => const Right(null));
   });
 
-  BreathingBloc buildBloc() =>
-      BreathingBloc(getSettings: getSettings, saveSettings: saveSettings);
+  BreathingBloc buildBloc() => BreathingBloc(
+    getSettings: getSettings,
+    saveSettings: saveSettings,
+    logCompletedSession: logCompletedSession,
+  );
 
   group('LoadBreathingSettings', () {
     blocTest<BreathingBloc, BreathingState>(

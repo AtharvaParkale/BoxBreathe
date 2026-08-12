@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../injection_container.dart';
 import '../../../../core/services/sound_service.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/app_containers.dart';
+import '../../../history/domain/entities/session_history.dart';
+import '../../../history/domain/usecases/get_history.dart';
 import '../bloc/settings_bloc.dart';
 import '../bloc/settings_event_state.dart';
 
@@ -24,17 +28,16 @@ class SettingsPage extends StatelessWidget {
           final settings = state.settings;
 
           return ListView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
-              _buildSectionHeader(context, 'PREFERENCES'),
-              const SizedBox(height: 12),
-              _buildGroupContainer(
-                context,
+              const AppSectionHeader(title: 'PREFERENCES'),
+              const SizedBox(height: AppSpacing.sm2),
+              AppGroupContainer(
                 children: [
                   SwitchListTile(
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 4,
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.xs,
                     ),
                     title: const Text('Sounds'),
                     subtitle: const Text('Play soft sounds during breathing'),
@@ -44,11 +47,11 @@ class SettingsPage extends StatelessWidget {
                       context.read<SettingsBloc>().add(ToggleSound(value));
                     },
                   ),
-                  _buildDivider(context),
+                  const AppDivider(),
                   SwitchListTile(
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 4,
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.xs,
                     ),
                     title: const Text('Haptics'),
                     subtitle: const Text('Vibrate on phase changes'),
@@ -62,45 +65,43 @@ class SettingsPage extends StatelessWidget {
               ),
 
               if (settings.isSoundEnabled) ...[
-                const SizedBox(height: 32),
-                _buildSectionHeader(context, 'SOUND CUE'),
-                const SizedBox(height: 12),
-                _buildGroupContainer(
-                  context,
+                const SizedBox(height: AppSpacing.xxl),
+                const AppSectionHeader(title: 'SOUND CUE'),
+                const SizedBox(height: AppSpacing.sm2),
+                AppGroupContainer(
                   children: [
                     _buildSoundCueOption(context, settings, 'Soft Bell', 'bell'),
-                    _buildDivider(context),
+                    const AppDivider(),
                     _buildSoundCueOption(context, settings, 'Wooden Click', 'wood'),
-                    _buildDivider(context),
+                    const AppDivider(),
                     _buildSoundCueOption(context, settings, 'Air Tone', 'air'),
-                    _buildDivider(context),
+                    const AppDivider(),
                     _buildSoundCueOption(context, settings, 'Gentle Chime', 'chime'),
-                    _buildDivider(context),
+                    const AppDivider(),
                     _buildSoundCueOption(context, settings, 'Digital Tick', 'tick'),
-                    _buildDivider(context),
+                    const AppDivider(),
                     _buildSoundCueOption(context, settings, 'Tibetan Bowl', 'bowl'),
-                    _buildDivider(context),
+                    const AppDivider(),
                     _buildSoundCueOption(context, settings, 'Deep Gong', 'gong'),
-                    _buildDivider(context),
+                    const AppDivider(),
                     _buildSoundCueOption(context, settings, 'Crystal Bowl', 'crystal'),
-                    _buildDivider(context),
+                    const AppDivider(),
                     _buildSoundCueOption(context, settings, 'Rain Drop', 'rain'),
-                    _buildDivider(context),
+                    const AppDivider(),
                     _buildSoundCueOption(context, settings, 'Ocean Wave', 'ocean'),
                   ],
                 ),
               ],
 
-              const SizedBox(height: 32),
-              _buildSectionHeader(context, 'REMINDERS'),
-              const SizedBox(height: 12),
-              _buildGroupContainer(
-                context,
+              const SizedBox(height: AppSpacing.xxl),
+              const AppSectionHeader(title: 'REMINDERS'),
+              const SizedBox(height: AppSpacing.sm2),
+              AppGroupContainer(
                 children: [
                   ListTile(
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 8,
+                      horizontal: AppSpacing.lg,
+                      vertical: AppSpacing.sm,
                     ),
                     title: const Text('Daily Reminder'),
                     subtitle: Text(
@@ -112,7 +113,7 @@ class SettingsPage extends StatelessWidget {
                             ),
                     ),
                     trailing: Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(AppSpacing.sm),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.circular(12),
@@ -134,39 +135,6 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildGroupContainer(
-    BuildContext context, {
-    required List<Widget> children,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.05),
-          width: 1,
-        ),
-      ),
-      child: Column(children: children),
-    );
-  }
-
-  Widget _buildDivider(BuildContext context) {
-    return Divider(
-      height: 1,
-      indent: 20,
-      endIndent: 20,
-      color: Colors.white.withValues(alpha: 0.08),
-    );
-  }
-
-  Widget _buildSectionHeader(BuildContext context, String title) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 12),
-      child: Text(title, style: Theme.of(context).textTheme.labelSmall),
-    );
-  }
-
   Widget _buildSoundCueOption(
     BuildContext context,
     dynamic settings,
@@ -177,7 +145,10 @@ class SettingsPage extends StatelessWidget {
     final primaryColor = Theme.of(context).primaryColor;
 
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.xs,
+      ),
       title: Text(
         title,
         style: TextStyle(
