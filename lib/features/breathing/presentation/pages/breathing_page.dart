@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../widgets/premium_controls.dart';
 import '../bloc/breathing_bloc.dart';
 import '../bloc/breathing_event.dart';
@@ -19,7 +22,7 @@ class BreathingPage extends StatefulWidget {
 }
 
 class _BreathingPageState extends State<BreathingPage>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _breathingController;
   late AnimationController _glowController;
   late Animation<double> _glowAnimation;
@@ -27,14 +30,17 @@ class _BreathingPageState extends State<BreathingPage>
   // Countdown State
   bool _isCountingDown = false;
   int _countdownValue = 3;
-  AnimationController? _countdownController;
 
   // Haptic State Tracking
-  String _lastPhase = '';
+  BreathingPhase? _lastPhase;
+
+  // Timer that returns the UI to "ready" a moment after a session completes
+  Timer? _completionTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Breathing Controller
     _breathingController = AnimationController(
       vsync: this,
@@ -47,7 +53,7 @@ class _BreathingPageState extends State<BreathingPage>
     _glowController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 6), // Slower, more calming glow
-    )..repeat(reverse: true);
+    );
 
     _glowAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _glowController, curve: Curves.easeInOutQuad),
@@ -55,12 +61,38 @@ class _BreathingPageState extends State<BreathingPage>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Respect the OS-level reduced-motion setting: hold the ambient glow
+    // steady instead of endlessly pulsing it.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _glowController.stop();
+      _glowController.value = 0.0;
+    } else if (!_glowController.isAnimating) {
+      _glowController.repeat(reverse: true);
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _breathingController.removeListener(_onBreathingTick);
     _breathingController.dispose();
     _glowController.dispose();
-    _countdownController?.dispose();
+    _completionTimer?.cancel();
+    WakelockPlus.disable();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if ((state == AppLifecycleState.paused ||
+            state == AppLifecycleState.inactive) &&
+        mounted &&
+        context.read<BreathingBloc>().state.status ==
+            BreathingStatus.active) {
+      _pauseSession();
+    }
   }
 
   void _onBreathingTick() {
@@ -96,12 +128,14 @@ class _BreathingPageState extends State<BreathingPage>
     });
   }
 
-  ({String phase, double scale}) _calculatePhaseAndScale(
+  ({BreathingPhase phase, double scale}) _calculatePhaseAndScale(
     double t,
     BreathingMode mode,
   ) {
     int total = mode.cycleDurationMs;
-    if (total == 0) return (phase: 'Inhale', scale: 0.6); // Safety
+    if (total == 0) {
+      return (phase: BreathingPhase.inhale, scale: 0.6); // Safety
+    }
 
     // Normalize durations to 0.0 - 1.0 range
     double inhaleEnd = mode.inhaleDurationMs / total;
@@ -114,22 +148,23 @@ class _BreathingPageState extends State<BreathingPage>
       double localT = t / inhaleEnd;
       // Use efficient sine-like curve: easeInOutCubicEmphasized is good but custom sine is smoother for breathing
       double curve = Curves.easeInOut.transform(localT);
-      return (phase: 'Inhale', scale: 0.6 + (0.4 * curve));
+      return (phase: BreathingPhase.inhale, scale: 0.6 + (0.4 * curve));
     } else if (t <= holdFullEnd) {
       // HOLD FULL: 1.0
-      return (phase: 'Hold', scale: 1.0);
+      return (phase: BreathingPhase.holdFull, scale: 1.0);
     } else if (t <= exhaleEnd) {
       // EXHALE: 1.0 -> 0.6
       double localT = (t - holdFullEnd) / (mode.exhaleDurationMs / total);
       double curve = Curves.easeInOut.transform(localT);
-      return (phase: 'Exhale', scale: 1.0 - (0.4 * curve));
+      return (phase: BreathingPhase.exhale, scale: 1.0 - (0.4 * curve));
     } else {
       // HOLD EMPTY: 0.6
-      return (phase: 'Hold', scale: 0.6);
+      return (phase: BreathingPhase.holdEmpty, scale: 0.6);
     }
   }
 
   void _startSession() {
+    _completionTimer?.cancel();
     // Check if we need countdown
     setState(() {
       _isCountingDown = true;
@@ -193,17 +228,30 @@ class _BreathingPageState extends State<BreathingPage>
       listenWhen: (previous, current) =>
           previous.status != current.status || previous.mode != current.mode,
       listener: (context, state) {
+        if (state.status == BreathingStatus.active) {
+          WakelockPlus.enable();
+        } else {
+          WakelockPlus.disable();
+        }
+
         if (state.status == BreathingStatus.completed) {
           _breathingController.stop();
           // Check settings before haptic
           if (context.read<SettingsBloc>().state.settings.isHapticEnabled) {
             HapticFeedback.heavyImpact();
           }
+          final reduceMotion = MediaQuery.disableAnimationsOf(context);
           // Reset to initial visual state
           _breathingController.animateTo(
             0.0,
-            duration: const Duration(seconds: 2),
-          ); // Slower reset
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(seconds: 2), // Slower reset
+          );
+          _completionTimer?.cancel();
+          _completionTimer = Timer(const Duration(seconds: 3), () {
+            if (mounted) context.read<BreathingBloc>().add(StopBreathing());
+          });
         } else if (state.status == BreathingStatus.initial) {
           _breathingController.reset();
           _breathingController.value = 0.0; // Ensure start small
@@ -217,6 +265,9 @@ class _BreathingPageState extends State<BreathingPage>
       },
       builder: (context, state) {
         final theme = Theme.of(context);
+        final hapticsEnabled = context.select(
+          (SettingsBloc bloc) => bloc.state.settings.isHapticEnabled,
+        );
 
         // Calculate current visual state based on controller
         // We use AnimatedBuilder to drive the UI at 60fps
@@ -237,6 +288,8 @@ class _BreathingPageState extends State<BreathingPage>
                       children: [
                         PremiumIconButton(
                           icon: Icons.grid_view_rounded,
+                          hapticsEnabled: hapticsEnabled,
+                          semanticLabel: 'Choose breathing mode',
                           onTap: _isCountingDown
                               ? null
                               : () => _showModeSelector(context),
@@ -267,6 +320,8 @@ class _BreathingPageState extends State<BreathingPage>
                         ),
                         PremiumIconButton(
                           icon: Icons.settings_rounded,
+                          hapticsEnabled: hapticsEnabled,
+                          semanticLabel: 'Settings',
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -291,7 +346,8 @@ class _BreathingPageState extends State<BreathingPage>
                           _breathingController.value,
                           state.mode,
                         );
-                        String displayLabel = phaseInfo.phase.toUpperCase();
+                        String displayLabel = phaseInfo.phase.displayLabel
+                            .toUpperCase();
                         double scale = phaseInfo.scale; // 0.6 to 1.0 range
 
                         // Map scale (0.6 - 1.0) to Opacity — ghostly at rest, luminous when full
@@ -321,7 +377,13 @@ class _BreathingPageState extends State<BreathingPage>
                           children: [
                             const Spacer(flex: 2), // Top Spacer
                             // Visual Circle
-                            SizedBox(
+                            Semantics(
+                              liveRegion: true,
+                              label: _isCountingDown
+                                  ? 'Get ready, starting in $_countdownValue'
+                                  : '$displayLabel, ${_formatTime(state.sessionRemainingSeconds)} remaining',
+                              child: ExcludeSemantics(
+                                child: SizedBox(
                               width: 300,
                               height: 300,
                               child: Stack(
@@ -412,6 +474,8 @@ class _BreathingPageState extends State<BreathingPage>
                                     ),
                                 ],
                               ),
+                                ),
+                              ),
                             ),
 
                             const SizedBox(height: 48),
@@ -478,6 +542,8 @@ class _BreathingPageState extends State<BreathingPage>
                             child: PremiumIconButton(
                               icon: Icons.refresh_rounded,
                               size: 56,
+                              hapticsEnabled: hapticsEnabled,
+                              semanticLabel: 'Reset session',
                               onTap: () {
                                 context.read<BreathingBloc>().add(
                                   StopBreathing(),
@@ -490,6 +556,7 @@ class _BreathingPageState extends State<BreathingPage>
                         // Main Play Button
                         PremiumPlayButton(
                           isPlaying: state.status == BreathingStatus.active,
+                          hapticsEnabled: hapticsEnabled,
                           onTap: () {
                             if (_isCountingDown) return;
                             if (state.status == BreathingStatus.active) {
@@ -508,6 +575,8 @@ class _BreathingPageState extends State<BreathingPage>
                           child: PremiumIconButton(
                             icon: Icons.timer_outlined,
                             size: 56,
+                            hapticsEnabled: hapticsEnabled,
+                            semanticLabel: 'Choose session duration',
                             onTap: _isCountingDown
                                 ? null
                                 : () => _showDurationSelector(context),

@@ -13,14 +13,13 @@ dependencies:
   equatable: ^2.0.8
   hive: ^2.2.3
   hive_flutter: ^1.1.0
-  path_provider: ^2.1.5
-  vibration: ^3.1.6
   audioplayers: ^6.5.1
   flutter_local_notifications: ^20.0.0
   get_it: ^9.2.0
   google_fonts: ^8.0.1
   dartz: ^0.10.1
   timezone: ^0.10.0
+  wakelock_plus: ^1.2.10
 
 dev_dependencies:
   flutter_test:
@@ -28,6 +27,8 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   build_runner: ^2.4.13
   hive_generator: ^2.0.1
+  bloc_test: ^10.0.0
+  mocktail: ^1.0.4
 
 flutter:
   uses-material-design: true

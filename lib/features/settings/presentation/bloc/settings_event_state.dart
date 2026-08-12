@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/settings.dart';
 
 // Events
@@ -10,13 +9,6 @@ abstract class SettingsEvent extends Equatable {
 }
 
 class LoadSettings extends SettingsEvent {}
-
-class ChangeTheme extends SettingsEvent {
-  final AppThemeMode themeMode;
-  const ChangeTheme(this.themeMode);
-  @override
-  List<Object> get props => [themeMode];
-}
 
 class ToggleSound extends SettingsEvent {
   final bool isEnabled;

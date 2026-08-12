@@ -7,6 +7,20 @@ enum BreathingPhase {
   holdEmpty, // Hold after exhale
 }
 
+extension BreathingPhaseLabel on BreathingPhase {
+  String get displayLabel {
+    switch (this) {
+      case BreathingPhase.inhale:
+        return 'Inhale';
+      case BreathingPhase.holdFull:
+      case BreathingPhase.holdEmpty:
+        return 'Hold';
+      case BreathingPhase.exhale:
+        return 'Exhale';
+    }
+  }
+}
+
 class BreathingMode extends Equatable {
   final String name;
   final int inhaleDurationMs;

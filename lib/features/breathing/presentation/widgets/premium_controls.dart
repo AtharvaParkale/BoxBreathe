@@ -6,6 +6,7 @@ class PremiumScaleButton extends StatefulWidget {
   final VoidCallback? onTap;
   final Duration duration;
   final double pressedScale;
+  final bool hapticsEnabled;
 
   const PremiumScaleButton({
     super.key,
@@ -13,6 +14,7 @@ class PremiumScaleButton extends StatefulWidget {
     required this.onTap,
     this.duration = const Duration(milliseconds: 100),
     this.pressedScale = 0.95,
+    this.hapticsEnabled = true,
   });
 
   @override
@@ -42,7 +44,7 @@ class _PremiumScaleButtonState extends State<PremiumScaleButton>
 
   void _onTapDown(TapDownDetails details) {
     if (widget.onTap == null) return;
-    HapticFeedback.lightImpact();
+    if (widget.hapticsEnabled) HapticFeedback.lightImpact();
     _controller.forward();
   }
 
@@ -72,12 +74,16 @@ class PremiumIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
   final double size;
+  final bool hapticsEnabled;
+  final String? semanticLabel;
 
   const PremiumIconButton({
     super.key,
     required this.icon,
     required this.onTap,
     this.size = 48,
+    this.hapticsEnabled = true,
+    this.semanticLabel,
   });
 
   @override
@@ -85,25 +91,31 @@ class PremiumIconButton extends StatelessWidget {
     final theme = Theme.of(context);
     final isEnabled = onTap != null;
 
-    return PremiumScaleButton(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.14),
-            width: 1,
+    return Semantics(
+      button: true,
+      enabled: isEnabled,
+      label: semanticLabel,
+      child: PremiumScaleButton(
+        onTap: onTap,
+        hapticsEnabled: hapticsEnabled,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.14),
+              width: 1,
+            ),
           ),
-        ),
-        child: Icon(
-          icon,
-          size: 20,
-          color: isEnabled
-              ? theme.colorScheme.onSurface.withValues(alpha: 0.90)
-              : theme.disabledColor,
+          child: Icon(
+            icon,
+            size: 20,
+            color: isEnabled
+                ? theme.colorScheme.onSurface.withValues(alpha: 0.90)
+                : theme.disabledColor,
+          ),
         ),
       ),
     );
@@ -113,40 +125,47 @@ class PremiumIconButton extends StatelessWidget {
 class PremiumPlayButton extends StatelessWidget {
   final bool isPlaying;
   final VoidCallback onTap;
+  final bool hapticsEnabled;
 
   const PremiumPlayButton({
     super.key,
     required this.isPlaying,
     required this.onTap,
+    this.hapticsEnabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return PremiumScaleButton(
-      onTap: onTap,
-      pressedScale: 0.92,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        width: 88,
-        height: 88,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primary,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: theme.colorScheme.primary.withValues(alpha: 0.25),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Icon(
-          isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-          size: 36,
-          color: theme.colorScheme.onPrimary,
+    return Semantics(
+      button: true,
+      label: isPlaying ? 'Pause session' : 'Start session',
+      child: PremiumScaleButton(
+        onTap: onTap,
+        pressedScale: 0.92,
+        hapticsEnabled: hapticsEnabled,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          width: 88,
+          height: 88,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: theme.colorScheme.primary.withValues(alpha: 0.25),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Icon(
+            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+            size: 36,
+            color: theme.colorScheme.onPrimary,
+          ),
         ),
       ),
     );

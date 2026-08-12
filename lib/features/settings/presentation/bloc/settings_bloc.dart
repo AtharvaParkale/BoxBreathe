@@ -13,7 +13,6 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   SettingsBloc({required this.getSettings, required this.saveSettings})
     : super(const SettingsState()) {
     on<LoadSettings>(_onLoadSettings);
-    on<ChangeTheme>(_onChangeTheme);
     on<ToggleSound>(_onToggleSound);
     on<ChangeSoundCue>(_onChangeSoundCue);
     on<ToggleHaptic>(_onToggleHaptic);
@@ -30,15 +29,6 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       (failure) => null,
       (settings) => emit(state.copyWith(settings: settings)),
     );
-  }
-
-  Future<void> _onChangeTheme(
-    ChangeTheme event,
-    Emitter<SettingsState> emit,
-  ) async {
-    final newSettings = state.settings.copyWith(themeMode: event.themeMode);
-    await saveSettings(newSettings);
-    emit(state.copyWith(settings: newSettings));
   }
 
   Future<void> _onToggleSound(

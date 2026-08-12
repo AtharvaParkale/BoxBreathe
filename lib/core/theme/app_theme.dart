@@ -1,19 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-enum AppThemeMode {
-  midnight,
-  ocean,
-  forest,
-  lavender,
-  sand,
-  minimalLight,
-  sunset,
-  bamboo,
-  cedar,
-  glacier,
-}
-
 class AppTheme {
   // Use Inter for that clean, premium look
   static final _textFont = GoogleFonts.interTextTheme();
@@ -27,8 +14,6 @@ class AppTheme {
     text: const Color(0xFFFFFFFF),
     subtext: const Color(0xFFFFFFFF),
   );
-
-  static ThemeData getTheme(AppThemeMode mode) => darkTheme;
 
   static ThemeData _buildTheme({
     required Brightness brightness,

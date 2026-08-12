@@ -27,15 +27,11 @@ class BoxBreatheApp extends StatelessWidget {
         ),
         BlocProvider(create: (_) => di.sl<SettingsBloc>()..add(LoadSettings())),
       ],
-      child: BlocBuilder<SettingsBloc, SettingsState>(
-        builder: (context, state) {
-          return MaterialApp(
-            title: 'BoxBreathe',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.getTheme(state.settings.themeMode),
-            home: const BreathingPage(),
-          );
-        },
+      child: MaterialApp(
+        title: 'BoxBreathe',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.darkTheme,
+        home: const BreathingPage(),
       ),
     );
   }
