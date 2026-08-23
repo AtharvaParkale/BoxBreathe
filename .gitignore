@@ -44,3 +44,8 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /android/key.properties
+
+# Firebase config files are intentionally NOT gitignored — firebase_options.dart,
+# google-services.json, and GoogleService-Info.plist contain only public,
+# non-secret client identifiers (not service-account keys) and must be
+# committed for the app to build without re-running `flutterfire configure`.
