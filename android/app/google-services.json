@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "268255882826",
+    "project_id": "ease-app-4711c",
+    "storage_bucket": "ease-app-4711c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:268255882826:android:9bd29577f4155ae7afc0b3",
+        "android_client_info": {
+          "package_name": "com.justonedev.BoxBreathe"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "268255882826-eg354j5n1h0biahecftl22oav4me1vqt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3WeoSIl5rhW6g_hChzN7VuuI7iNYeGqs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "268255882826-eg354j5n1h0biahecftl22oav4me1vqt.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

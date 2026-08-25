@@ -63,7 +63,7 @@ class NotificationHelper {
 
     await _notificationsPlugin.zonedSchedule(
       id: 0,
-      title: 'BoxBreathe',
+      title: 'Ease',
       body: 'Take 2 minutes to breathe.',
       scheduledDate: scheduledDate,
       notificationDetails: const NotificationDetails(

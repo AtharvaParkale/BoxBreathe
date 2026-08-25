@@ -33,7 +33,7 @@ class BoxBreatheApp extends StatelessWidget {
         BlocProvider(create: (_) => di.sl<SettingsBloc>()..add(LoadSettings())),
       ],
       child: MaterialApp(
-        title: 'BoxBreathe',
+        title: 'Ease',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
         home: showOnboarding ? const OnboardingPage() : const BreathingPage(),

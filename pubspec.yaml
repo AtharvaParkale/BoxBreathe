@@ -35,12 +35,19 @@ dev_dependencies:
   mocktail: ^1.0.4
   firebase_auth_mocks: ^0.15.2
   fake_cloud_firestore: ^4.2.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/ease_app_logo.png"
 
 flutter:
   uses-material-design: true
 
   assets:
     - assets/audio/
+    - assets/icon/
 
   # assets:
   #   - images/a_dot_burr.jpeg

@@ -15,7 +15,7 @@ class _OnboardingSlide {
 
 const _slides = [
   _OnboardingSlide(
-    title: 'BoxBreathe',
+    title: 'Ease',
     body: 'Calm your mind instantly using guided breathing.',
   ),
   _OnboardingSlide(
