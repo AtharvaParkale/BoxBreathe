@@ -11,6 +11,7 @@ import 'package:box_breathe/features/breathing/presentation/bloc/breathing_bloc.
 import 'package:box_breathe/features/breathing/presentation/bloc/breathing_event.dart';
 import 'package:box_breathe/features/breathing/presentation/bloc/breathing_state.dart';
 import 'package:box_breathe/features/history/domain/usecases/log_completed_session.dart';
+import 'package:box_breathe/features/history/domain/usecases/log_remote_session.dart';
 
 class MockGetBreathingSettings extends Mock implements GetBreathingSettings {}
 
@@ -19,12 +20,15 @@ class MockSaveBreathingSettings extends Mock
 
 class MockLogCompletedSession extends Mock implements LogCompletedSession {}
 
+class MockLogRemoteSession extends Mock implements LogRemoteSession {}
+
 class FakeBreathingSettings extends Fake implements BreathingSettings {}
 
 void main() {
   late MockGetBreathingSettings getSettings;
   late MockSaveBreathingSettings saveSettings;
   late MockLogCompletedSession logCompletedSession;
+  late MockLogRemoteSession logRemoteSession;
 
   setUpAll(() {
     registerFallbackValue(FakeBreathingSettings());
@@ -34,11 +38,23 @@ void main() {
     getSettings = MockGetBreathingSettings();
     saveSettings = MockSaveBreathingSettings();
     logCompletedSession = MockLogCompletedSession();
+    logRemoteSession = MockLogRemoteSession();
     when(
       () => saveSettings(any()),
     ).thenAnswer((_) async => const Right(null));
     when(
       () => logCompletedSession(any()),
+    ).thenAnswer((_) async => const Right(null));
+    when(
+      () => logRemoteSession(
+        techniqueId: any(named: 'techniqueId'),
+        techniqueName: any(named: 'techniqueName'),
+        durationSeconds: any(named: 'durationSeconds'),
+        completedDurationSeconds: any(named: 'completedDurationSeconds'),
+        startedAt: any(named: 'startedAt'),
+        completedAt: any(named: 'completedAt'),
+        completed: any(named: 'completed'),
+      ),
     ).thenAnswer((_) async => const Right(null));
   });
 
@@ -46,6 +62,7 @@ void main() {
     getSettings: getSettings,
     saveSettings: saveSettings,
     logCompletedSession: logCompletedSession,
+    logRemoteSession: logRemoteSession,
   );
 
   group('LoadBreathingSettings', () {
@@ -211,6 +228,17 @@ void main() {
         // Bloc must remain in `completed`, not silently bounce back to
         // `initial` on its own.
         expect(bloc.state.status, BreathingStatus.completed);
+        verify(
+          () => logRemoteSession(
+            techniqueId: any(named: 'techniqueId'),
+            techniqueName: any(named: 'techniqueName'),
+            durationSeconds: any(named: 'durationSeconds'),
+            completedDurationSeconds: any(named: 'completedDurationSeconds'),
+            startedAt: any(named: 'startedAt'),
+            completedAt: any(named: 'completedAt'),
+            completed: any(named: 'completed'),
+          ),
+        ).called(1);
       },
     );
   });
@@ -249,6 +277,19 @@ void main() {
           sessionRemainingSeconds: 300,
         ),
       ],
+      verify: (_) {
+        verifyNever(
+          () => logRemoteSession(
+            techniqueId: any(named: 'techniqueId'),
+            techniqueName: any(named: 'techniqueName'),
+            durationSeconds: any(named: 'durationSeconds'),
+            completedDurationSeconds: any(named: 'completedDurationSeconds'),
+            startedAt: any(named: 'startedAt'),
+            completedAt: any(named: 'completedAt'),
+            completed: any(named: 'completed'),
+          ),
+        );
+      },
     );
   });
 }

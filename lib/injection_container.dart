@@ -29,10 +29,12 @@ import 'features/breathing/domain/usecases/get_breathing_settings.dart';
 import 'features/breathing/domain/usecases/save_breathing_settings.dart';
 import 'features/breathing/presentation/bloc/breathing_bloc.dart';
 import 'features/history/data/datasources/history_local_data_source.dart';
+import 'features/history/data/datasources/history_remote_data_source.dart';
 import 'features/history/data/repositories/history_repository_impl.dart';
 import 'features/history/domain/repositories/history_repository.dart';
 import 'features/history/domain/usecases/get_history.dart';
 import 'features/history/domain/usecases/log_completed_session.dart';
+import 'features/history/domain/usecases/log_remote_session.dart';
 import 'features/onboarding/onboarding_storage.dart';
 
 final sl = GetIt.instance;
@@ -89,6 +91,7 @@ Future<void> init() async {
       getSettings: sl(),
       saveSettings: sl(),
       logCompletedSession: sl(),
+      logRemoteSession: sl(),
     ),
   );
 
@@ -142,16 +145,24 @@ Future<void> init() async {
   // Use cases
   sl.registerLazySingleton(() => GetHistory(sl()));
   sl.registerLazySingleton(() => LogCompletedSession(sl()));
+  sl.registerLazySingleton(() => LogRemoteSession(sl()));
 
   // Repository
   sl.registerLazySingleton<HistoryRepository>(
-    () => HistoryRepositoryImpl(localDataSource: sl()),
+    () => HistoryRepositoryImpl(
+      localDataSource: sl(),
+      remoteDataSource: sl(),
+      authRepository: sl(),
+    ),
   );
 
-  // Data source (own box — an accumulating log/counter, not a settings
+  // Data sources (own box — an accumulating log/counter, not a settings
   // record, so it doesn't share the settings box)
   final historyBox = await Hive.openBox('session_history');
   sl.registerLazySingleton<HistoryLocalDataSource>(
     () => HistoryLocalDataSourceImpl(historyBox),
+  );
+  sl.registerLazySingleton<HistoryRemoteDataSource>(
+    () => FirestoreHistoryRemoteDataSourceImpl(firestore: sl()),
   );
 }

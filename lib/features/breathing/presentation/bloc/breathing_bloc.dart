@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../history/domain/usecases/log_completed_session.dart';
+import '../../../history/domain/usecases/log_remote_session.dart';
 import '../../domain/entities/breathing_settings.dart';
 import '../../domain/usecases/get_breathing_settings.dart';
 import '../../domain/usecases/save_breathing_settings.dart';
@@ -12,13 +13,16 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
   final GetBreathingSettings getSettings;
   final SaveBreathingSettings saveSettings;
   final LogCompletedSession logCompletedSession;
+  final LogRemoteSession logRemoteSession;
 
   StreamSubscription<int>? _tickerSubscription;
+  DateTime? _sessionStartedAt;
 
   BreathingBloc({
     required this.getSettings,
     required this.saveSettings,
     required this.logCompletedSession,
+    required this.logRemoteSession,
   }) : super(BreathingState.initial()) {
     on<LoadBreathingSettings>(_onLoadSettings);
     on<StartBreathing>(_onStart);
@@ -48,6 +52,7 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
 
   void _onStart(StartBreathing event, Emitter<BreathingState> emit) {
     if (state.status == BreathingStatus.active) return;
+    _sessionStartedAt = DateTime.now();
     emit(state.copyWith(status: BreathingStatus.active));
     _startTicker();
   }
@@ -131,7 +136,20 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
         );
         // Only sessions that finish naturally count — logged as a
         // fire-and-forget side effect, decoupled from the emitted state.
-        unawaited(logCompletedSession(state.sessionDurationMinutes * 60));
+        final completedDurationSeconds = state.sessionDurationMinutes * 60;
+        unawaited(logCompletedSession(completedDurationSeconds));
+        final startedAt = _sessionStartedAt ?? DateTime.now();
+        unawaited(
+          logRemoteSession(
+            techniqueId: state.mode.id,
+            techniqueName: state.mode.name,
+            durationSeconds: completedDurationSeconds,
+            completedDurationSeconds: completedDurationSeconds,
+            startedAt: startedAt,
+            completedAt: DateTime.now(),
+            completed: true,
+          ),
+        );
         return;
       }
     }
