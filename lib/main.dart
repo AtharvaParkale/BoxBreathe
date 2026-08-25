@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'core/firebase/firebase_initializer.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/auth/presentation/bloc/auth_event.dart';
 import 'features/breathing/presentation/bloc/breathing_bloc.dart';
 import 'features/breathing/presentation/bloc/breathing_event.dart';
 import 'features/breathing/presentation/pages/breathing_page.dart';
@@ -13,6 +16,7 @@ import 'features/settings/presentation/bloc/settings_event_state.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeFirebase();
   await di.init();
   final showOnboarding = !di.sl<OnboardingStorage>().hasSeenOnboarding();
   runApp(BoxBreatheApp(showOnboarding: showOnboarding));
@@ -27,6 +31,7 @@ class BoxBreatheApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
+        BlocProvider(create: (_) => di.sl<AuthBloc>()..add(AppStarted())),
         BlocProvider(
           create: (_) => di.sl<BreathingBloc>()..add(LoadBreathingSettings()),
         ),

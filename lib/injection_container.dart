@@ -1,8 +1,21 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import 'core/services/notification_helper.dart';
 import 'core/services/sound_service.dart';
+import 'features/auth/data/datasources/auth_remote_data_source.dart';
+import 'features/auth/data/datasources/user_profile_remote_data_source.dart';
+import 'features/auth/data/repositories/auth_repository_impl.dart';
+import 'features/auth/domain/repositories/auth_repository.dart';
+import 'features/auth/domain/usecases/delete_account.dart';
+import 'features/auth/domain/usecases/link_anonymous_with_google.dart';
+import 'features/auth/domain/usecases/sign_in_anonymously.dart';
+import 'features/auth/domain/usecases/sign_in_with_google.dart';
+import 'features/auth/domain/usecases/sign_out.dart';
+import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/settings/data/datasources/settings_local_data_source.dart';
 import 'features/settings/data/repositories/settings_repository_impl.dart';
 import 'features/settings/domain/repositories/settings_repository.dart';
@@ -25,6 +38,50 @@ import 'features/onboarding/onboarding_storage.dart';
 final sl = GetIt.instance;
 
 Future<void> init() async {
+  // External - Firebase
+  sl.registerLazySingleton(() => FirebaseAuth.instance);
+  sl.registerLazySingleton(() => GoogleSignIn.instance);
+  sl.registerLazySingleton(() => FirebaseFirestore.instance);
+
+  // Features - Auth
+  // Bloc
+  sl.registerFactory(
+    () => AuthBloc(
+      authRepository: sl(),
+      signInAnonymously: sl(),
+      signInWithGoogle: sl(),
+      linkAnonymousWithGoogle: sl(),
+      signOut: sl(),
+      deleteAccount: sl(),
+    ),
+  );
+
+  // Use cases
+  sl.registerLazySingleton(() => SignInAnonymously(sl()));
+  sl.registerLazySingleton(() => SignInWithGoogle(sl()));
+  sl.registerLazySingleton(() => LinkAnonymousWithGoogle(sl()));
+  sl.registerLazySingleton(() => SignOut(sl()));
+  sl.registerLazySingleton(() => DeleteAccount(sl()));
+
+  // Repository
+  sl.registerLazySingleton<AuthRepository>(
+    () => AuthRepositoryImpl(
+      authRemoteDataSource: sl(),
+      userProfileRemoteDataSource: sl(),
+    ),
+  );
+
+  // Data sources
+  sl.registerLazySingleton<AuthRemoteDataSource>(
+    () => FirebaseAuthRemoteDataSourceImpl(
+      firebaseAuth: sl(),
+      googleSignIn: sl(),
+    ),
+  );
+  sl.registerLazySingleton<UserProfileRemoteDataSource>(
+    () => UserProfileFirestoreDataSourceImpl(firestore: sl()),
+  );
+
   // Features - Breathing
   // Bloc
   sl.registerFactory(
