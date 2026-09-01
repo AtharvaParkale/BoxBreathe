@@ -381,6 +381,12 @@ class _BreathingPageState extends State<BreathingPage>
                         // Soft pulsing glow
                         double ambientGlow = _glowAnimation.value * 4;
 
+                        // Hidden before a session actually starts — at rest
+                        // it just overlaps the moment-picker chips below.
+                        final showTimer =
+                            !_isCountingDown &&
+                            state.status != BreathingStatus.initial;
+
                         return Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -521,15 +527,17 @@ class _BreathingPageState extends State<BreathingPage>
                               ),
                             ),
 
-                            const SizedBox(height: 24),
-
-                            // Timer
-                            Text(
-                              _formatTime(state.sessionRemainingSeconds),
-                              style: theme.textTheme.headlineMedium?.copyWith(
-                                color: theme.colorScheme.onSurface,
+                            if (showTimer) ...[
+                              const SizedBox(height: 24),
+                              // Timer
+                              Text(
+                                _formatTime(state.sessionRemainingSeconds),
+                                style: theme.textTheme.headlineMedium
+                                    ?.copyWith(
+                                      color: theme.colorScheme.onSurface,
+                                    ),
                               ),
-                            ),
+                            ],
 
                             const Spacer(flex: 3), // Bottom Spacer
                           ],
