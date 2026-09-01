@@ -13,8 +13,10 @@ import 'features/auth/domain/repositories/auth_repository.dart';
 import 'features/auth/domain/usecases/delete_account.dart';
 import 'features/auth/domain/usecases/link_anonymous_with_google.dart';
 import 'features/auth/domain/usecases/sign_in_anonymously.dart';
+import 'features/auth/domain/usecases/sign_in_with_email_password.dart';
 import 'features/auth/domain/usecases/sign_in_with_google.dart';
 import 'features/auth/domain/usecases/sign_out.dart';
+import 'features/auth/domain/usecases/sign_up_with_email_password.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/settings/data/datasources/settings_local_data_source.dart';
 import 'features/settings/data/repositories/settings_repository_impl.dart';
@@ -52,6 +54,8 @@ Future<void> init() async {
       authRepository: sl(),
       signInAnonymously: sl(),
       signInWithGoogle: sl(),
+      signInWithEmailPassword: sl(),
+      signUpWithEmailPassword: sl(),
       linkAnonymousWithGoogle: sl(),
       signOut: sl(),
       deleteAccount: sl(),
@@ -61,6 +65,8 @@ Future<void> init() async {
   // Use cases
   sl.registerLazySingleton(() => SignInAnonymously(sl()));
   sl.registerLazySingleton(() => SignInWithGoogle(sl()));
+  sl.registerLazySingleton(() => SignInWithEmailPassword(sl()));
+  sl.registerLazySingleton(() => SignUpWithEmailPassword(sl()));
   sl.registerLazySingleton(() => LinkAnonymousWithGoogle(sl()));
   sl.registerLazySingleton(() => SignOut(sl()));
   sl.registerLazySingleton(() => DeleteAccount(sl()));

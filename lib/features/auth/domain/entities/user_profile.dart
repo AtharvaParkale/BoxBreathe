@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum AuthProviderType { anonymous, google }
+enum AuthProviderType { anonymous, google, email }
 
 class UserProfile extends Equatable {
   final String uid;

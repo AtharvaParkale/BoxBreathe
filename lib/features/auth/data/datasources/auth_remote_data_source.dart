@@ -9,6 +9,18 @@ abstract class AuthRemoteDataSource {
 
   Future<firebase_auth.User> signInAnonymously();
 
+  /// Debug-only credential entry point — see [FirebaseAuthRemoteDataSourceImpl]
+  /// doc comment.
+  Future<firebase_auth.User> signInWithEmailAndPassword(
+    String email,
+    String password,
+  );
+
+  Future<firebase_auth.User> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  );
+
   /// Runs the interactive Google account picker and exchanges the result for
   /// a Firebase [firebase_auth.AuthCredential]. Does not touch Firebase Auth
   /// state itself — callers decide whether to sign in or link with it.
@@ -87,6 +99,38 @@ class FirebaseAuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       return _requireUser(credential.user, 'Anonymous sign-in');
     } on firebase_auth.FirebaseAuthException catch (e) {
       throw AuthException(e.message ?? 'Anonymous sign-in failed', e.code);
+    }
+  }
+
+  @override
+  Future<firebase_auth.User> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    try {
+      final credential = await firebaseAuth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return _requireUser(credential.user, 'Email sign-in');
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      throw AuthException(e.message ?? 'Email sign-in failed', e.code);
+    }
+  }
+
+  @override
+  Future<firebase_auth.User> createUserWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    try {
+      final credential = await firebaseAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      return _requireUser(credential.user, 'Email sign-up');
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      throw AuthException(e.message ?? 'Email sign-up failed', e.code);
     }
   }
 

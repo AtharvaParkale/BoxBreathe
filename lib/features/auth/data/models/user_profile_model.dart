@@ -22,12 +22,21 @@ class UserProfileModel extends UserProfile {
       displayName: user.displayName,
       email: user.email,
       photoUrl: user.photoURL,
-      provider: user.isAnonymous
-          ? AuthProviderType.anonymous
-          : AuthProviderType.google,
+      provider: providerFromFirebaseUser(user),
       createdAt: user.metadata.creationTime ?? now,
       lastActiveAt: now,
     );
+  }
+
+  /// `password`-provider check must come before the `isAnonymous` fallback:
+  /// once linked, a Firebase user is no longer anonymous but has no other
+  /// provider hook here besides `google.com`/`password`.
+  static AuthProviderType providerFromFirebaseUser(firebase_auth.User user) {
+    if (user.isAnonymous) return AuthProviderType.anonymous;
+    final hasPasswordProvider = user.providerData.any(
+      (info) => info.providerId == 'password',
+    );
+    return hasPasswordProvider ? AuthProviderType.email : AuthProviderType.google;
   }
 
   factory UserProfileModel.fromFirestore(
@@ -39,9 +48,11 @@ class UserProfileModel extends UserProfile {
       displayName: data['displayName'] as String?,
       email: data['email'] as String?,
       photoUrl: data['photoUrl'] as String?,
-      provider: data['provider'] == 'google'
-          ? AuthProviderType.google
-          : AuthProviderType.anonymous,
+      provider: switch (data['provider']) {
+        'google' => AuthProviderType.google,
+        'email' => AuthProviderType.email,
+        _ => AuthProviderType.anonymous,
+      },
       createdAt:
           (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       lastActiveAt:
@@ -55,9 +66,11 @@ class UserProfileModel extends UserProfile {
       'displayName': displayName,
       'email': email,
       'photoUrl': photoUrl,
-      'provider': provider == AuthProviderType.google
-          ? 'google'
-          : 'anonymous',
+      'provider': switch (provider) {
+        AuthProviderType.google => 'google',
+        AuthProviderType.email => 'email',
+        AuthProviderType.anonymous => 'anonymous',
+      },
       'createdAt': Timestamp.fromDate(createdAt),
       'lastActiveAt': Timestamp.fromDate(lastActiveAt),
       'onboardingComplete': onboardingComplete,

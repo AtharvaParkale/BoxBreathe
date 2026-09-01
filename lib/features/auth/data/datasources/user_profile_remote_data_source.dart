@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
 import '../../../../core/error/exceptions.dart';
-import '../../domain/entities/user_profile.dart';
 import '../models/user_profile_model.dart';
 
 abstract class UserProfileRemoteDataSource {
@@ -39,9 +38,7 @@ class UserProfileFirestoreDataSourceImpl implements UserProfileRemoteDataSource 
           displayName: user.displayName ?? existing.displayName,
           email: user.email ?? existing.email,
           photoUrl: user.photoURL ?? existing.photoUrl,
-          provider: user.isAnonymous
-              ? AuthProviderType.anonymous
-              : AuthProviderType.google,
+          provider: UserProfileModel.providerFromFirebaseUser(user),
           createdAt: existing.createdAt,
           lastActiveAt: DateTime.now(),
           onboardingComplete: existing.onboardingComplete,

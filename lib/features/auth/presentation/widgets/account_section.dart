@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -18,17 +19,45 @@ class AccountSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
+        final Widget content;
         switch (state.status) {
           case AuthStatus.initial:
           case AuthStatus.loading:
-            return _buildLoading(context);
+            content = _buildLoading(context);
           case AuthStatus.signedIn:
-            return _buildSignedIn(context, state);
+            content = _buildSignedIn(context, state);
           case AuthStatus.anonymous:
           case AuthStatus.error:
-            return _buildAnonymous(context);
+            content = _buildAnonymous(context, state);
         }
+        if (!kDebugMode) return content;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [content, _buildDebugFooter(context, state)],
+        );
       },
+    );
+  }
+
+  /// Dev-only readout (stripped from release builds via [kDebugMode]) so
+  /// the raw Firebase uid/provider/status can be eyeballed against the
+  /// Firestore console while testing sign-in/link/sign-out/delete flows.
+  Widget _buildDebugFooter(BuildContext context, AuthState state) {
+    final theme = Theme.of(context);
+    final user = state.user;
+    final text = user == null
+        ? 'debug: status=${state.status.name}'
+        : 'debug: status=${state.status.name} uid=${user.uid} '
+              'provider=${user.provider.name}${state.errorMessage != null ? ' error=${state.errorMessage}' : ''}';
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xs, left: AppSpacing.sm2),
+      child: Text(
+        text,
+        style: theme.textTheme.bodySmall?.copyWith(
+          fontFamily: 'monospace',
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+        ),
+      ),
     );
   }
 
@@ -64,7 +93,7 @@ class AccountSection extends StatelessWidget {
     );
   }
 
-  Widget _buildAnonymous(BuildContext context) {
+  Widget _buildAnonymous(BuildContext context, AuthState state) {
     final theme = Theme.of(context);
     return AppGroupContainer(
       children: [
@@ -76,8 +105,14 @@ class AccountSection extends StatelessWidget {
               Text('Save your progress', style: theme.textTheme.titleMedium),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'Keep your breathing history across devices',
-                style: theme.textTheme.bodyMedium,
+                state.status == AuthStatus.error && state.errorMessage != null
+                    ? state.errorMessage!
+                    : 'Keep your breathing history across devices',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: state.status == AuthStatus.error
+                      ? theme.colorScheme.error
+                      : null,
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               PremiumScaleButton(
@@ -100,6 +135,10 @@ class AccountSection extends StatelessWidget {
                   ),
                 ),
               ),
+              if (kDebugMode) ...[
+                const SizedBox(height: AppSpacing.md),
+                const _EmailPasswordDebugForm(),
+              ],
             ],
           ),
         ),
@@ -240,5 +279,86 @@ class AccountSection extends StatelessWidget {
     if (confirmed == true) {
       bloc.add(DeleteAccountRequested());
     }
+  }
+}
+
+/// Debug-only email/password entry point so testers don't need a Google
+/// account. Gated on [kDebugMode] in [AccountSection] — never appears in a
+/// release build, so there's nothing to manually strip before shipping.
+class _EmailPasswordDebugForm extends StatefulWidget {
+  const _EmailPasswordDebugForm();
+
+  @override
+  State<_EmailPasswordDebugForm> createState() =>
+      _EmailPasswordDebugFormState();
+}
+
+class _EmailPasswordDebugFormState extends State<_EmailPasswordDebugForm> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _submit(bool isSignUp) {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (email.isEmpty || password.isEmpty) return;
+    context.read<AuthBloc>().add(
+      isSignUp
+          ? EmailSignUpRequested(email, password)
+          : EmailSignInRequested(email, password),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'DEBUG: email/password (removed before release)',
+          style: theme.textTheme.labelSmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        TextField(
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          autocorrect: false,
+          decoration: const InputDecoration(hintText: 'Email'),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        TextField(
+          controller: _passwordController,
+          obscureText: true,
+          decoration: const InputDecoration(hintText: 'Password'),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => _submit(false),
+                child: const Text('Sign in'),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => _submit(true),
+                child: const Text('Sign up'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }

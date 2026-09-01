@@ -16,6 +16,23 @@ class AppStarted extends AuthEvent {}
 
 class GoogleSignInRequested extends AuthEvent {}
 
+/// Debug-only — see `AccountSection`'s kDebugMode-gated email/password form.
+class EmailSignInRequested extends AuthEvent {
+  final String email;
+  final String password;
+  const EmailSignInRequested(this.email, this.password);
+  @override
+  List<Object?> get props => [email, password];
+}
+
+class EmailSignUpRequested extends AuthEvent {
+  final String email;
+  final String password;
+  const EmailSignUpRequested(this.email, this.password);
+  @override
+  List<Object?> get props => [email, password];
+}
+
 class SignOutRequested extends AuthEvent {}
 
 class DeleteAccountRequested extends AuthEvent {}

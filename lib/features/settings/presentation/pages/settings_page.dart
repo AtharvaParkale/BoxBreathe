@@ -4,6 +4,7 @@ import '../../../../injection_container.dart';
 import '../../../../core/services/sound_service.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_containers.dart';
+import '../../../auth/presentation/widgets/account_section.dart';
 import '../../../history/domain/entities/session_history.dart';
 import '../../../history/domain/usecases/get_history.dart';
 import '../bloc/settings_bloc.dart';
@@ -30,6 +31,11 @@ class SettingsPage extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
+              const AppSectionHeader(title: 'ACCOUNT'),
+              const SizedBox(height: AppSpacing.sm2),
+              const AccountSection(),
+
+              const SizedBox(height: AppSpacing.xxl),
               const AppSectionHeader(title: 'PREFERENCES'),
               const SizedBox(height: AppSpacing.sm2),
               AppGroupContainer(
