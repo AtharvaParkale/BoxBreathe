@@ -62,4 +62,24 @@ class HistoryRepositoryImpl implements HistoryRepository {
       return Left(ServerFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, List<BreathingSessionRecord>>> getSessionsSince(
+    DateTime? since,
+  ) async {
+    try {
+      final uid = authRepository.currentUser?.uid;
+      if (uid == null) {
+        // Cold-start race: anonymous sign-in hasn't resolved yet.
+        return const Right([]);
+      }
+      final records = await remoteDataSource.getSessionsSince(
+        uid: uid,
+        since: since,
+      );
+      return Right(records);
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
 }

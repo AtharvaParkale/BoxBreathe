@@ -42,7 +42,7 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly([
                'techniqueId', 'techniqueName', 'durationSeconds',
                'completedDurationSeconds', 'startedAt', 'completedAt',
-               'completed', 'source',
+               'completed', 'dateKeyLocal', 'source',
              ])
           && request.resource.data.techniqueId is string
           && request.resource.data.techniqueName is string
@@ -53,6 +53,7 @@ service cloud.firestore {
           && request.resource.data.startedAt is timestamp
           && request.resource.data.completedAt is timestamp
           && request.resource.data.completed is bool
+          && request.resource.data.dateKeyLocal is string
           && request.resource.data.source in ['android', 'ios'];
 
         allow update, delete: if false;

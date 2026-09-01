@@ -11,4 +11,11 @@ abstract class HistoryRepository {
   /// remote failure surface as a rejected Future — always resolves to an
   /// `Either`, so callers can safely fire-and-forget it.
   Future<Either<Failure, void>> logRemoteSession(BreathingSessionRecord record);
+
+  /// Reads this user's remote session history newer than [since] (or all of
+  /// it, if null). Resolves to `Right([])`, not an error, if the uid hasn't
+  /// resolved yet (same defensive pattern as [logRemoteSession]).
+  Future<Either<Failure, List<BreathingSessionRecord>>> getSessionsSince(
+    DateTime? since,
+  );
 }

@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'core/services/id_generator.dart';
 import 'core/services/notification_helper.dart';
 import 'core/services/sound_service.dart';
 import 'features/auth/data/datasources/auth_remote_data_source.dart';
@@ -35,9 +36,18 @@ import 'features/history/data/datasources/history_remote_data_source.dart';
 import 'features/history/data/repositories/history_repository_impl.dart';
 import 'features/history/domain/repositories/history_repository.dart';
 import 'features/history/domain/usecases/get_history.dart';
+import 'features/history/domain/usecases/get_sessions_since.dart';
 import 'features/history/domain/usecases/log_completed_session.dart';
 import 'features/history/domain/usecases/log_remote_session.dart';
 import 'features/onboarding/onboarding_storage.dart';
+import 'features/progress/data/datasources/progress_local_data_source.dart';
+import 'features/progress/data/repositories/progress_repository_impl.dart';
+import 'features/progress/domain/repositories/progress_repository.dart';
+import 'features/progress/domain/usecases/get_post_session_reward.dart';
+import 'features/progress/domain/usecases/get_progress_summary.dart';
+import 'features/progress/domain/usecases/log_progress_session.dart';
+import 'features/progress/domain/usecases/sync_progress.dart';
+import 'features/progress/presentation/bloc/progress_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -46,6 +56,9 @@ Future<void> init() async {
   sl.registerLazySingleton(() => FirebaseAuth.instance);
   sl.registerLazySingleton(() => GoogleSignIn.instance);
   sl.registerLazySingleton(() => FirebaseFirestore.instance);
+
+  // Core
+  sl.registerLazySingleton<IdGenerator>(() => FirestoreIdGenerator(sl()));
 
   // Features - Auth
   // Bloc
@@ -98,6 +111,9 @@ Future<void> init() async {
       saveSettings: sl(),
       logCompletedSession: sl(),
       logRemoteSession: sl(),
+      logProgressSession: sl(),
+      getPostSessionReward: sl(),
+      idGenerator: sl(),
     ),
   );
 
@@ -170,5 +186,44 @@ Future<void> init() async {
   );
   sl.registerLazySingleton<HistoryRemoteDataSource>(
     () => FirestoreHistoryRemoteDataSourceImpl(firestore: sl()),
+  );
+
+  // Cross-feature: reads this user's remote session history for Progress
+  // sync (write path already registered above via LogRemoteSession).
+  sl.registerLazySingleton(() => GetSessionsSince(sl()));
+
+  // Features - Progress
+  // Bloc (page-scoped in practice — ProgressPage creates its own instance
+  // via sl(), it is not added to main.dart's app-lifetime MultiBlocProvider)
+  sl.registerFactory(
+    () => ProgressBloc(getSummary: sl(), syncProgress: sl()),
+  );
+
+  // Use cases
+  sl.registerLazySingleton(() => LogProgressSession(sl()));
+  sl.registerLazySingleton(() => GetProgressSummary(sl()));
+  sl.registerLazySingleton(() => SyncProgress(sl()));
+  sl.registerLazySingleton(() => GetPostSessionReward(sl()));
+
+  // Repository
+  sl.registerLazySingleton<ProgressRepository>(
+    () => ProgressRepositoryImpl(
+      localDataSource: sl(),
+      getSessionsSince: sl(),
+      authRepository: sl(),
+    ),
+  );
+
+  // Data sources (own boxes — see progress_local_data_source.dart for why
+  // sessions are one-key-per-record rather than a single mega-list key)
+  final progressSessionsBox = await Hive.openBox('progress_sessions');
+  final progressAchievementsBox = await Hive.openBox('progress_achievements');
+  final progressMetaBox = await Hive.openBox('progress_meta');
+  sl.registerLazySingleton<ProgressLocalDataSource>(
+    () => ProgressLocalDataSourceImpl(
+      sessionsBox: progressSessionsBox,
+      achievementsBox: progressAchievementsBox,
+      metaBox: progressMetaBox,
+    ),
   );
 }

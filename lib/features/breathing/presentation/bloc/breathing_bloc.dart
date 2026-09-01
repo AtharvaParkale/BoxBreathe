@@ -1,8 +1,12 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/services/id_generator.dart';
+import '../../../../core/utils/date_key.dart';
 import '../../../history/domain/usecases/log_completed_session.dart';
 import '../../../history/domain/usecases/log_remote_session.dart';
+import '../../../progress/domain/usecases/get_post_session_reward.dart';
+import '../../../progress/domain/usecases/log_progress_session.dart';
 import '../../domain/entities/breathing_settings.dart';
 import '../../domain/usecases/get_breathing_settings.dart';
 import '../../domain/usecases/save_breathing_settings.dart';
@@ -14,6 +18,9 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
   final SaveBreathingSettings saveSettings;
   final LogCompletedSession logCompletedSession;
   final LogRemoteSession logRemoteSession;
+  final LogProgressSession logProgressSession;
+  final GetPostSessionReward getPostSessionReward;
+  final IdGenerator idGenerator;
 
   StreamSubscription<int>? _tickerSubscription;
   DateTime? _sessionStartedAt;
@@ -23,6 +30,9 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
     required this.saveSettings,
     required this.logCompletedSession,
     required this.logRemoteSession,
+    required this.logProgressSession,
+    required this.getPostSessionReward,
+    required this.idGenerator,
   }) : super(BreathingState.initial()) {
     on<LoadBreathingSettings>(_onLoadSettings);
     on<StartBreathing>(_onStart);
@@ -53,7 +63,12 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
   void _onStart(StartBreathing event, Emitter<BreathingState> emit) {
     if (state.status == BreathingStatus.active) return;
     _sessionStartedAt = DateTime.now();
-    emit(state.copyWith(status: BreathingStatus.active));
+    emit(
+      state.copyWith(
+        status: BreathingStatus.active,
+        clearPostSessionReward: true,
+      ),
+    );
     _startTicker();
   }
 
@@ -73,6 +88,7 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
       state.copyWith(
         status: BreathingStatus.initial,
         sessionRemainingSeconds: _secondsFor(state.sessionDurationMinutes),
+        clearPostSessionReward: true,
       ),
     );
   }
@@ -119,7 +135,7 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
         });
   }
 
-  void _onTick(TimerTick event, Emitter<BreathingState> emit) {
+  Future<void> _onTick(TimerTick event, Emitter<BreathingState> emit) async {
     if (state.status != BreathingStatus.active) return;
 
     // Update Session Timer
@@ -128,26 +144,59 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
       newSessionRemaining = state.sessionRemainingSeconds - 1;
       if (newSessionRemaining <= 0) {
         _tickerSubscription?.cancel();
+
+        // Only sessions that finish naturally count.
+        final completedDurationSeconds = state.sessionDurationMinutes * 60;
+        final startedAt = _sessionStartedAt ?? DateTime.now();
+        final completedAt = DateTime.now();
+        final sessionId = idGenerator.newId();
+        final dateKeyLocal = dateKeyFor(completedAt.toLocal());
+
+        unawaited(logCompletedSession(completedDurationSeconds));
+
+        // Local progress write is a fast Hive `put` — awaited so the
+        // post-session reward below can be computed synchronously and
+        // included directly in the emitted state, rather than the page
+        // racing a separate fetch against this fire-and-forget write.
+        await logProgressSession(
+          sessionId: sessionId,
+          techniqueId: state.mode.id,
+          techniqueName: state.mode.name,
+          completedDurationSeconds: completedDurationSeconds,
+          startedAt: startedAt,
+          completedAt: completedAt,
+          dateKeyLocal: dateKeyLocal,
+        );
+        final reward = await getPostSessionReward();
+
         emit(
           state.copyWith(
             status: BreathingStatus.completed,
             sessionRemainingSeconds: 0,
+            postSessionStreakDays: reward.fold(
+              (_) => null,
+              (r) => r.streakDays,
+            ),
+            postSessionAchievementTitle: reward.fold(
+              (_) => null,
+              (r) => r.newlyUnlockedTitle,
+            ),
           ),
         );
-        // Only sessions that finish naturally count — logged as a
-        // fire-and-forget side effect, decoupled from the emitted state.
-        final completedDurationSeconds = state.sessionDurationMinutes * 60;
-        unawaited(logCompletedSession(completedDurationSeconds));
-        final startedAt = _sessionStartedAt ?? DateTime.now();
+
+        // Firestore mirror stays fire-and-forget, now sharing the same
+        // client-minted id and dateKey as the local record.
         unawaited(
           logRemoteSession(
+            sessionId: sessionId,
             techniqueId: state.mode.id,
             techniqueName: state.mode.name,
             durationSeconds: completedDurationSeconds,
             completedDurationSeconds: completedDurationSeconds,
             startedAt: startedAt,
-            completedAt: DateTime.now(),
+            completedAt: completedAt,
             completed: true,
+            dateKeyLocal: dateKeyLocal,
           ),
         );
         return;

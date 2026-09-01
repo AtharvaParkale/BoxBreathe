@@ -3,6 +3,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'package:box_breathe/core/services/id_generator.dart';
 import 'package:box_breathe/features/breathing/domain/entities/breathing_mode.dart';
 import 'package:box_breathe/features/breathing/domain/entities/breathing_settings.dart';
 import 'package:box_breathe/features/breathing/domain/usecases/get_breathing_settings.dart';
@@ -12,6 +13,9 @@ import 'package:box_breathe/features/breathing/presentation/bloc/breathing_event
 import 'package:box_breathe/features/breathing/presentation/bloc/breathing_state.dart';
 import 'package:box_breathe/features/history/domain/usecases/log_completed_session.dart';
 import 'package:box_breathe/features/history/domain/usecases/log_remote_session.dart';
+import 'package:box_breathe/features/progress/domain/entities/post_session_reward.dart';
+import 'package:box_breathe/features/progress/domain/usecases/get_post_session_reward.dart';
+import 'package:box_breathe/features/progress/domain/usecases/log_progress_session.dart';
 
 class MockGetBreathingSettings extends Mock implements GetBreathingSettings {}
 
@@ -22,6 +26,12 @@ class MockLogCompletedSession extends Mock implements LogCompletedSession {}
 
 class MockLogRemoteSession extends Mock implements LogRemoteSession {}
 
+class MockLogProgressSession extends Mock implements LogProgressSession {}
+
+class MockGetPostSessionReward extends Mock implements GetPostSessionReward {}
+
+class MockIdGenerator extends Mock implements IdGenerator {}
+
 class FakeBreathingSettings extends Fake implements BreathingSettings {}
 
 void main() {
@@ -29,6 +39,9 @@ void main() {
   late MockSaveBreathingSettings saveSettings;
   late MockLogCompletedSession logCompletedSession;
   late MockLogRemoteSession logRemoteSession;
+  late MockLogProgressSession logProgressSession;
+  late MockGetPostSessionReward getPostSessionReward;
+  late MockIdGenerator idGenerator;
 
   setUpAll(() {
     registerFallbackValue(FakeBreathingSettings());
@@ -39,6 +52,10 @@ void main() {
     saveSettings = MockSaveBreathingSettings();
     logCompletedSession = MockLogCompletedSession();
     logRemoteSession = MockLogRemoteSession();
+    logProgressSession = MockLogProgressSession();
+    getPostSessionReward = MockGetPostSessionReward();
+    idGenerator = MockIdGenerator();
+
     when(
       () => saveSettings(any()),
     ).thenAnswer((_) async => const Right(null));
@@ -47,6 +64,7 @@ void main() {
     ).thenAnswer((_) async => const Right(null));
     when(
       () => logRemoteSession(
+        sessionId: any(named: 'sessionId'),
         techniqueId: any(named: 'techniqueId'),
         techniqueName: any(named: 'techniqueName'),
         durationSeconds: any(named: 'durationSeconds'),
@@ -54,8 +72,26 @@ void main() {
         startedAt: any(named: 'startedAt'),
         completedAt: any(named: 'completedAt'),
         completed: any(named: 'completed'),
+        dateKeyLocal: any(named: 'dateKeyLocal'),
       ),
     ).thenAnswer((_) async => const Right(null));
+    when(
+      () => logProgressSession(
+        sessionId: any(named: 'sessionId'),
+        techniqueId: any(named: 'techniqueId'),
+        techniqueName: any(named: 'techniqueName'),
+        completedDurationSeconds: any(named: 'completedDurationSeconds'),
+        startedAt: any(named: 'startedAt'),
+        completedAt: any(named: 'completedAt'),
+        dateKeyLocal: any(named: 'dateKeyLocal'),
+      ),
+    ).thenAnswer((_) async => const Right(null));
+    when(() => getPostSessionReward()).thenAnswer(
+      (_) async => const Right(
+        PostSessionReward(streakDays: 1, newlyUnlockedTitle: null),
+      ),
+    );
+    when(() => idGenerator.newId()).thenReturn('test-session-id');
   });
 
   BreathingBloc buildBloc() => BreathingBloc(
@@ -63,6 +99,9 @@ void main() {
     saveSettings: saveSettings,
     logCompletedSession: logCompletedSession,
     logRemoteSession: logRemoteSession,
+    logProgressSession: logProgressSession,
+    getPostSessionReward: getPostSessionReward,
+    idGenerator: idGenerator,
   );
 
   group('LoadBreathingSettings', () {
@@ -207,9 +246,9 @@ void main() {
     );
 
     blocTest<BreathingBloc, BreathingState>(
-      'reaching zero emits completed exactly once and does not '
-      'auto-revert to initial (regression: used to double-emit '
-      'completed then initial in the same handler)',
+      'reaching zero emits completed exactly once, carries the post-session '
+      'reward, and does not auto-revert to initial (regression: used to '
+      'double-emit completed then initial in the same handler)',
       build: buildBloc,
       seed: () => const BreathingState(
         status: BreathingStatus.active,
@@ -222,14 +261,28 @@ void main() {
           status: BreathingStatus.completed,
           sessionDurationMinutes: 3,
           sessionRemainingSeconds: 0,
+          postSessionStreakDays: 1,
         ),
       ],
       verify: (bloc) {
         // Bloc must remain in `completed`, not silently bounce back to
         // `initial` on its own.
         expect(bloc.state.status, BreathingStatus.completed);
+        verify(() => idGenerator.newId()).called(1);
+        verify(
+          () => logProgressSession(
+            sessionId: 'test-session-id',
+            techniqueId: any(named: 'techniqueId'),
+            techniqueName: any(named: 'techniqueName'),
+            completedDurationSeconds: any(named: 'completedDurationSeconds'),
+            startedAt: any(named: 'startedAt'),
+            completedAt: any(named: 'completedAt'),
+            dateKeyLocal: any(named: 'dateKeyLocal'),
+          ),
+        ).called(1);
         verify(
           () => logRemoteSession(
+            sessionId: 'test-session-id',
             techniqueId: any(named: 'techniqueId'),
             techniqueName: any(named: 'techniqueName'),
             durationSeconds: any(named: 'durationSeconds'),
@@ -237,6 +290,7 @@ void main() {
             startedAt: any(named: 'startedAt'),
             completedAt: any(named: 'completedAt'),
             completed: any(named: 'completed'),
+            dateKeyLocal: any(named: 'dateKeyLocal'),
           ),
         ).called(1);
       },
@@ -280,6 +334,7 @@ void main() {
       verify: (_) {
         verifyNever(
           () => logRemoteSession(
+            sessionId: any(named: 'sessionId'),
             techniqueId: any(named: 'techniqueId'),
             techniqueName: any(named: 'techniqueName'),
             durationSeconds: any(named: 'durationSeconds'),
@@ -287,6 +342,18 @@ void main() {
             startedAt: any(named: 'startedAt'),
             completedAt: any(named: 'completedAt'),
             completed: any(named: 'completed'),
+            dateKeyLocal: any(named: 'dateKeyLocal'),
+          ),
+        );
+        verifyNever(
+          () => logProgressSession(
+            sessionId: any(named: 'sessionId'),
+            techniqueId: any(named: 'techniqueId'),
+            techniqueName: any(named: 'techniqueName'),
+            completedDurationSeconds: any(named: 'completedDurationSeconds'),
+            startedAt: any(named: 'startedAt'),
+            completedAt: any(named: 'completedAt'),
+            dateKeyLocal: any(named: 'dateKeyLocal'),
           ),
         );
       },

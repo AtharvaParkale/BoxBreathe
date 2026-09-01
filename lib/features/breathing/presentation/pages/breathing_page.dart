@@ -12,6 +12,7 @@ import '../bloc/breathing_state.dart';
 import '../../domain/entities/breathing_mode.dart';
 import '../../../../features/settings/presentation/bloc/settings_bloc.dart';
 import '../../../../features/settings/presentation/pages/settings_page.dart';
+import '../../../../features/progress/presentation/pages/progress_page.dart';
 import '../../../../injection_container.dart' as di;
 import '../../../../core/services/sound_service.dart';
 
@@ -327,16 +328,33 @@ class _BreathingPageState extends State<BreathingPage>
                             ),
                           ],
                         ),
-                        PremiumIconButton(
-                          icon: Icons.settings_rounded,
-                          hapticsEnabled: hapticsEnabled,
-                          semanticLabel: 'Settings',
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const SettingsPage(),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            PremiumIconButton(
+                              icon: Icons.insights_rounded,
+                              hapticsEnabled: hapticsEnabled,
+                              semanticLabel: 'Your progress',
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ProgressPage(),
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 12),
+                            PremiumIconButton(
+                              icon: Icons.settings_rounded,
+                              hapticsEnabled: hapticsEnabled,
+                              semanticLabel: 'Settings',
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const SettingsPage(),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -527,6 +545,22 @@ class _BreathingPageState extends State<BreathingPage>
                               ),
                             ),
 
+                            if (state.status ==
+                                BreathingStatus.completed) ...[
+                              const SizedBox(height: 12),
+                              AnimatedOpacity(
+                                opacity: 1.0,
+                                duration: const Duration(milliseconds: 600),
+                                child: Text(
+                                  _postSessionRewardText(state),
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.45),
+                                  ),
+                                ),
+                              ),
+                            ],
+
                             if (showTimer) ...[
                               const SizedBox(height: 24),
                               // Timer
@@ -688,6 +722,17 @@ class _BreathingPageState extends State<BreathingPage>
         );
       },
     );
+  }
+
+  String _postSessionRewardText(BreathingState state) {
+    if (state.postSessionAchievementTitle != null) {
+      return 'Achievement unlocked · ${state.postSessionAchievementTitle}';
+    }
+    final streakDays = state.postSessionStreakDays;
+    if (streakDays != null) {
+      return '$streakDays day${streakDays == 1 ? '' : 's'} streak';
+    }
+    return 'First session logged';
   }
 
   String _formatTime(int totalSeconds) {

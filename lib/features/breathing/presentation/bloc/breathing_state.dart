@@ -9,11 +9,19 @@ class BreathingState extends Equatable {
   final int sessionDurationMinutes; // Target duration
   final int sessionRemainingSeconds; // Countdown
 
+  /// Post-session reward line shown for a few seconds on the completed
+  /// screen. Reset to null on the next start/stop so stale text never
+  /// leaks into a later session.
+  final int? postSessionStreakDays;
+  final String? postSessionAchievementTitle;
+
   const BreathingState({
     this.status = BreathingStatus.initial,
     this.mode = BreathingMode.box,
     this.sessionDurationMinutes = 3,
     this.sessionRemainingSeconds = 0,
+    this.postSessionStreakDays,
+    this.postSessionAchievementTitle,
   });
 
   static BreathingState initial() {
@@ -25,6 +33,9 @@ class BreathingState extends Equatable {
     BreathingMode? mode,
     int? sessionDurationMinutes,
     int? sessionRemainingSeconds,
+    int? postSessionStreakDays,
+    String? postSessionAchievementTitle,
+    bool clearPostSessionReward = false,
   }) {
     return BreathingState(
       status: status ?? this.status,
@@ -33,14 +44,22 @@ class BreathingState extends Equatable {
           sessionDurationMinutes ?? this.sessionDurationMinutes,
       sessionRemainingSeconds:
           sessionRemainingSeconds ?? this.sessionRemainingSeconds,
+      postSessionStreakDays: clearPostSessionReward
+          ? null
+          : (postSessionStreakDays ?? this.postSessionStreakDays),
+      postSessionAchievementTitle: clearPostSessionReward
+          ? null
+          : (postSessionAchievementTitle ?? this.postSessionAchievementTitle),
     );
   }
 
   @override
-  List<Object> get props => [
+  List<Object?> get props => [
     status,
     mode,
     sessionDurationMinutes,
     sessionRemainingSeconds,
+    postSessionStreakDays,
+    postSessionAchievementTitle,
   ];
 }
