@@ -4,6 +4,7 @@ import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/utils/date_key.dart';
 import '../../../auth/domain/repositories/auth_repository.dart';
+import '../../../breathing/domain/entities/breathing_technique_catalog.dart';
 import '../../../history/domain/usecases/get_sessions_since.dart';
 import '../../domain/entities/achievement_definition.dart';
 import '../../domain/entities/achievement_progress.dart';
@@ -41,7 +42,13 @@ class ProgressRepositoryImpl implements ProgressRepository {
     DateTime? forMonth,
   }) async {
     try {
-      final sessions = localDataSource.getAllSessions();
+      // Only natural completions count toward streaks/achievements/stats.
+      // A no-op today (every logged record is completed), but guards
+      // against a future change that also logs aborted sessions from
+      // silently affecting numbers users already understand.
+      final sessions = localDataSource.getAllSessions()
+          .where((s) => s.completed)
+          .toList();
       final now = DateTime.now();
       final todayKey = dateKeyFor(now);
       final practicedDateKeys = sessions.map((s) => s.dateKeyLocal).toSet();
@@ -116,6 +123,8 @@ class ProgressRepositoryImpl implements ProgressRepository {
                 startedAt: r.startedAt,
                 completedAt: r.completedAt,
                 dateKeyLocal: r.dateKeyLocal,
+                completed: r.completed,
+                reason: r.reason,
               ),
             );
             mergedCount++;
@@ -134,7 +143,9 @@ class ProgressRepositoryImpl implements ProgressRepository {
   @override
   Future<Either<Failure, PostSessionReward>> evaluatePostSessionReward() async {
     try {
-      final sessions = localDataSource.getAllSessions();
+      final sessions = localDataSource.getAllSessions()
+          .where((s) => s.completed)
+          .toList();
       final todayKey = dateKeyFor(DateTime.now());
       final practicedDateKeys = sessions.map((s) => s.dateKeyLocal).toSet();
       final streak = computeStreak(practicedDateKeys, todayKey);
@@ -145,6 +156,19 @@ class ProgressRepositoryImpl implements ProgressRepository {
           newlyUnlockedTitle: achievements.newlyUnlockedTitle,
         ),
       );
+    } catch (e) {
+      return Left(CacheFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<ProgressSessionRecord>>> getRecentSessions({
+    int limit = 10,
+  }) async {
+    try {
+      final sessions = localDataSource.getAllSessions()
+        ..sort((a, b) => b.completedAt.compareTo(a.completedAt));
+      return Right(sessions.take(limit).toList());
     } catch (e) {
       return Left(CacheFailure(e.toString()));
     }
@@ -206,9 +230,16 @@ class ProgressRepositoryImpl implements ProgressRepository {
           final minutes =
               list.fold<int>(0, (sum, s) => sum + s.completedDurationSeconds) ~/
               60;
+          // Prefer the live catalog name so a technique renamed after a
+          // session was logged (e.g. Quick Reset -> Pre-Meeting Reset)
+          // displays consistently, falling back to the persisted name for
+          // ids no longer in the catalog.
+          final catalogName = BreathingTechniqueCatalog.exists(entry.key)
+              ? BreathingTechniqueCatalog.byId(entry.key).name
+              : null;
           return TechniqueBreakdownEntry(
             techniqueId: entry.key,
-            techniqueName: list.first.techniqueName,
+            techniqueName: catalogName ?? list.first.techniqueName,
             sessionCount: list.length,
             totalMinutes: minutes,
             percentage: total == 0 ? 0 : list.length / total,

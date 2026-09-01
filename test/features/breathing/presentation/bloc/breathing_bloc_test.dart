@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:box_breathe/core/services/id_generator.dart';
-import 'package:box_breathe/features/breathing/domain/entities/breathing_mode.dart';
+import 'package:box_breathe/features/breathing/domain/entities/breathing_technique_catalog.dart';
 import 'package:box_breathe/features/breathing/domain/entities/breathing_settings.dart';
 import 'package:box_breathe/features/breathing/domain/usecases/get_breathing_settings.dart';
 import 'package:box_breathe/features/breathing/domain/usecases/save_breathing_settings.dart';
@@ -111,15 +111,15 @@ void main() {
       setUp: () {
         when(() => getSettings()).thenAnswer(
           (_) async => const Right(
-            BreathingSettings(mode: BreathingMode.sleep, durationMinutes: 10),
+            BreathingSettings(techniqueId: 'sleep', durationMinutes: 10),
           ),
         );
       },
       build: buildBloc,
       act: (bloc) => bloc.add(LoadBreathingSettings()),
       expect: () => [
-        const BreathingState(
-          mode: BreathingMode.sleep,
+        BreathingState(
+          technique: BreathingTechniqueCatalog.byId('sleep'),
           sessionDurationMinutes: 10,
           sessionRemainingSeconds: 600,
         ),
@@ -131,31 +131,31 @@ void main() {
       setUp: () {
         when(() => getSettings()).thenAnswer(
           (_) async => const Right(
-            BreathingSettings(mode: BreathingMode.box, durationMinutes: -1),
+            BreathingSettings(techniqueId: 'box', durationMinutes: -1),
           ),
         );
       },
       build: buildBloc,
       act: (bloc) => bloc.add(LoadBreathingSettings()),
       expect: () => [
-        const BreathingState(sessionDurationMinutes: -1, sessionRemainingSeconds: -1),
+        BreathingState(sessionDurationMinutes: -1, sessionRemainingSeconds: -1),
       ],
     );
   });
 
-  group('ChangeBreathingMode', () {
+  group('ChangeTechnique', () {
     blocTest<BreathingBloc, BreathingState>(
       'preserves the currently selected duration instead of resetting to 3 '
       '(regression: used to always reset/save duration as 3)',
       build: buildBloc,
-      seed: () => const BreathingState(
+      seed: () => BreathingState(
         sessionDurationMinutes: 10,
         sessionRemainingSeconds: 600,
       ),
-      act: (bloc) => bloc.add(const ChangeBreathingMode(BreathingMode.sleep)),
+      act: (bloc) => bloc.add(const ChangeTechnique('sleep')),
       expect: () => [
-        const BreathingState(
-          mode: BreathingMode.sleep,
+        BreathingState(
+          technique: BreathingTechniqueCatalog.byId('sleep'),
           sessionDurationMinutes: 10,
           sessionRemainingSeconds: 600,
         ),
@@ -164,7 +164,7 @@ void main() {
         verify(
           () => saveSettings(
             const BreathingSettings(
-              mode: BreathingMode.sleep,
+              techniqueId: 'sleep',
               durationMinutes: 10,
             ),
           ),
@@ -182,7 +182,7 @@ void main() {
         verify(
           () => saveSettings(
             const BreathingSettings(
-              mode: BreathingMode.box,
+              techniqueId: 'box',
               durationMinutes: 10,
             ),
           ),
@@ -206,14 +206,14 @@ void main() {
     blocTest<BreathingBloc, BreathingState>(
       'ticks the remaining seconds down while active',
       build: buildBloc,
-      seed: () => const BreathingState(
+      seed: () => BreathingState(
         status: BreathingStatus.active,
         sessionDurationMinutes: 3,
         sessionRemainingSeconds: 3,
       ),
       act: (bloc) => bloc.add(TimerTick()),
       expect: () => [
-        const BreathingState(
+        BreathingState(
           status: BreathingStatus.active,
           sessionDurationMinutes: 3,
           sessionRemainingSeconds: 2,
@@ -224,7 +224,7 @@ void main() {
     blocTest<BreathingBloc, BreathingState>(
       'never decrements or completes an infinite-duration session',
       build: buildBloc,
-      seed: () => const BreathingState(
+      seed: () => BreathingState(
         status: BreathingStatus.active,
         sessionDurationMinutes: -1,
         sessionRemainingSeconds: -1,
@@ -236,7 +236,7 @@ void main() {
     blocTest<BreathingBloc, BreathingState>(
       'ignores ticks while not active',
       build: buildBloc,
-      seed: () => const BreathingState(
+      seed: () => BreathingState(
         status: BreathingStatus.paused,
         sessionDurationMinutes: 3,
         sessionRemainingSeconds: 60,
@@ -250,14 +250,14 @@ void main() {
       'reward, and does not auto-revert to initial (regression: used to '
       'double-emit completed then initial in the same handler)',
       build: buildBloc,
-      seed: () => const BreathingState(
+      seed: () => BreathingState(
         status: BreathingStatus.active,
         sessionDurationMinutes: 3,
         sessionRemainingSeconds: 1,
       ),
       act: (bloc) => bloc.add(TimerTick()),
       expect: () => [
-        const BreathingState(
+        BreathingState(
           status: BreathingStatus.completed,
           sessionDurationMinutes: 3,
           sessionRemainingSeconds: 0,
@@ -301,17 +301,17 @@ void main() {
     blocTest<BreathingBloc, BreathingState>(
       'pause transitions status to paused',
       build: buildBloc,
-      seed: () => const BreathingState(status: BreathingStatus.active),
+      seed: () => BreathingState(status: BreathingStatus.active),
       act: (bloc) => bloc.add(PauseBreathing()),
-      expect: () => [const BreathingState(status: BreathingStatus.paused)],
+      expect: () => [BreathingState(status: BreathingStatus.paused)],
     );
 
     blocTest<BreathingBloc, BreathingState>(
       'resume transitions status back to active',
       build: buildBloc,
-      seed: () => const BreathingState(status: BreathingStatus.paused),
+      seed: () => BreathingState(status: BreathingStatus.paused),
       act: (bloc) => bloc.add(ResumeBreathing()),
-      expect: () => [const BreathingState(status: BreathingStatus.active)],
+      expect: () => [BreathingState(status: BreathingStatus.active)],
     );
   });
 
@@ -319,14 +319,14 @@ void main() {
     blocTest<BreathingBloc, BreathingState>(
       'resets remaining seconds from the current session duration',
       build: buildBloc,
-      seed: () => const BreathingState(
+      seed: () => BreathingState(
         status: BreathingStatus.active,
         sessionDurationMinutes: 5,
         sessionRemainingSeconds: 42,
       ),
       act: (bloc) => bloc.add(StopBreathing()),
       expect: () => [
-        const BreathingState(
+        BreathingState(
           sessionDurationMinutes: 5,
           sessionRemainingSeconds: 300,
         ),

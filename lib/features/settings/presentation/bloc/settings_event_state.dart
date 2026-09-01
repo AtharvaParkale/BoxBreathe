@@ -41,6 +41,13 @@ class SetDailyReminder extends SettingsEvent {
 
 class CancelDailyReminder extends SettingsEvent {}
 
+class ToggleFavoriteTechnique extends SettingsEvent {
+  final String techniqueId;
+  const ToggleFavoriteTechnique(this.techniqueId);
+  @override
+  List<Object> get props => [techniqueId];
+}
+
 // State
 class SettingsState extends Equatable {
   final Settings settings;

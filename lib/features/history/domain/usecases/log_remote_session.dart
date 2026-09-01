@@ -18,6 +18,7 @@ class LogRemoteSession {
     required DateTime completedAt,
     required bool completed,
     required String dateKeyLocal,
+    String? reason,
   }) async {
     return await repository.logRemoteSession(
       BreathingSessionRecord(
@@ -30,6 +31,7 @@ class LogRemoteSession {
         completedAt: completedAt,
         completed: completed,
         dateKeyLocal: dateKeyLocal,
+        reason: reason,
       ),
     );
   }

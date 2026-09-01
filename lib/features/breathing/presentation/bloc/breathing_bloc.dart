@@ -8,6 +8,7 @@ import '../../../history/domain/usecases/log_remote_session.dart';
 import '../../../progress/domain/usecases/get_post_session_reward.dart';
 import '../../../progress/domain/usecases/log_progress_session.dart';
 import '../../domain/entities/breathing_settings.dart';
+import '../../domain/entities/breathing_technique_catalog.dart';
 import '../../domain/usecases/get_breathing_settings.dart';
 import '../../domain/usecases/save_breathing_settings.dart';
 import 'breathing_event.dart';
@@ -39,7 +40,7 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
     on<PauseBreathing>(_onPause);
     on<ResumeBreathing>(_onResume);
     on<StopBreathing>(_onStop);
-    on<ChangeBreathingMode>(_onChangeMode);
+    on<ChangeTechnique>(_onChangeTechnique);
     on<ChangeSessionDuration>(_onChangeDuration);
     on<TimerTick>(_onTick);
   }
@@ -52,7 +53,7 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
     result.fold((failure) => null, (settings) {
       emit(
         state.copyWith(
-          mode: settings.mode,
+          technique: BreathingTechniqueCatalog.byId(settings.techniqueId),
           sessionDurationMinutes: settings.durationMinutes,
           sessionRemainingSeconds: _secondsFor(settings.durationMinutes),
         ),
@@ -93,20 +94,23 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
     );
   }
 
-  void _onChangeMode(ChangeBreathingMode event, Emitter<BreathingState> emit) {
+  void _onChangeTechnique(ChangeTechnique event, Emitter<BreathingState> emit) {
     _tickerSubscription?.cancel();
+    final technique = BreathingTechniqueCatalog.byId(event.techniqueId);
     saveSettings(
       BreathingSettings(
-        mode: event.mode,
+        techniqueId: technique.id,
         durationMinutes: state.sessionDurationMinutes,
       ),
     );
 
     emit(
       state.copyWith(
-        mode: event.mode,
+        technique: technique,
         status: BreathingStatus.initial,
         sessionRemainingSeconds: _secondsFor(state.sessionDurationMinutes),
+        selectedReason: event.reason,
+        clearSelectedReason: event.reason == null,
       ),
     );
   }
@@ -123,7 +127,10 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
     );
     add(StopBreathing());
     saveSettings(
-      BreathingSettings(mode: state.mode, durationMinutes: event.durationMinutes),
+      BreathingSettings(
+        techniqueId: state.technique.id,
+        durationMinutes: event.durationMinutes,
+      ),
     );
   }
 
@@ -160,12 +167,13 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
         // racing a separate fetch against this fire-and-forget write.
         await logProgressSession(
           sessionId: sessionId,
-          techniqueId: state.mode.id,
-          techniqueName: state.mode.name,
+          techniqueId: state.technique.id,
+          techniqueName: state.technique.name,
           completedDurationSeconds: completedDurationSeconds,
           startedAt: startedAt,
           completedAt: completedAt,
           dateKeyLocal: dateKeyLocal,
+          reason: state.selectedReason,
         );
         final reward = await getPostSessionReward();
 
@@ -189,14 +197,15 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
         unawaited(
           logRemoteSession(
             sessionId: sessionId,
-            techniqueId: state.mode.id,
-            techniqueName: state.mode.name,
+            techniqueId: state.technique.id,
+            techniqueName: state.technique.name,
             durationSeconds: completedDurationSeconds,
             completedDurationSeconds: completedDurationSeconds,
             startedAt: startedAt,
             completedAt: completedAt,
             completed: true,
             dateKeyLocal: dateKeyLocal,
+            reason: state.selectedReason,
           ),
         );
         return;

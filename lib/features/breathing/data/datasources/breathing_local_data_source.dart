@@ -1,6 +1,6 @@
 import 'package:hive/hive.dart';
 import '../../../../core/error/exceptions.dart'; // Need to create exceptions
-import '../../domain/entities/breathing_mode.dart';
+import '../../domain/entities/breathing_technique_catalog.dart';
 import '../../domain/entities/breathing_settings.dart';
 
 abstract class BreathingLocalDataSource {
@@ -11,21 +11,23 @@ abstract class BreathingLocalDataSource {
 class BreathingLocalDataSourceImpl implements BreathingLocalDataSource {
   final Box box;
 
-  // Legacy key: the selected mode used to be persisted as a positional
+  // Legacy key: the selected technique used to be persisted as a positional
   // index into BreathingMode.values. That list has since been curated
-  // from 13 techniques down to 5, so an old index no longer points at
-  // the same technique. Kept only to support the one-time migration
-  // below; never written to anymore.
+  // from 13 techniques down to 5 (and back up again), so an old index no
+  // longer points at the same technique. Kept only to support the one-time
+  // migration below; never written to anymore.
   static const String legacyKeyModeIndex = 'breathing_mode_index';
 
   // The 13-technique order BreathingMode.values used to have, by name,
   // frozen here so the migration below still works after values shrank.
   // A null entry means that technique was removed in the curation and
-  // has no direct successor.
+  // has no direct successor. These ids still resolve today via
+  // BreathingTechniqueCatalog — the library has since grown back to a
+  // full 12+ techniques, but stable ids never changed.
   static const List<String?> _legacyModeIdsByIndex = [
     'box', // Box
     'calm478', // Calm (now "4-7-8")
-    'quickReset', // Quick Reset
+    'quickReset', // Quick Reset (now "Pre-Meeting Reset")
     'sleep', // Sleep
     null, // Wim Hof — removed
     null, // Deep Breathing — removed
@@ -48,19 +50,20 @@ class BreathingLocalDataSourceImpl implements BreathingLocalDataSource {
     try {
       final duration = box.get(keyDuration, defaultValue: 3) as int;
       final modeId = await _resolveModeId();
-      final mode =
-          BreathingMode.values.firstWhere(
-            (m) => m.id == modeId,
-            orElse: () => BreathingMode.box,
-          );
+      final techniqueId = BreathingTechniqueCatalog.exists(modeId)
+          ? modeId
+          : BreathingTechniqueCatalog.defaultId;
 
-      return BreathingSettings(mode: mode, durationMinutes: duration);
+      return BreathingSettings(
+        techniqueId: techniqueId,
+        durationMinutes: duration,
+      );
     } catch (e) {
       throw CacheException();
     }
   }
 
-  /// Reads the current mode id, migrating the legacy positional-index
+  /// Reads the current technique id, migrating the legacy positional-index
   /// key to the new stable-id key the first time this runs.
   Future<String> _resolveModeId() async {
     final storedId = box.get(keyModeId) as String?;
@@ -71,8 +74,8 @@ class BreathingLocalDataSourceImpl implements BreathingLocalDataSource {
         (legacyIndex != null &&
             legacyIndex >= 0 &&
             legacyIndex < _legacyModeIdsByIndex.length)
-        ? _legacyModeIdsByIndex[legacyIndex] ?? BreathingMode.box.id
-        : BreathingMode.box.id;
+        ? _legacyModeIdsByIndex[legacyIndex] ?? BreathingTechniqueCatalog.defaultId
+        : BreathingTechniqueCatalog.defaultId;
 
     await box.put(keyModeId, migratedId);
     if (legacyIndex != null) await box.delete(legacyKeyModeIndex);
@@ -82,7 +85,7 @@ class BreathingLocalDataSourceImpl implements BreathingLocalDataSource {
   @override
   Future<void> saveSettings(BreathingSettings settings) async {
     try {
-      await box.put(keyModeId, settings.mode.id);
+      await box.put(keyModeId, settings.techniqueId);
       await box.put(keyDuration, settings.durationMinutes);
     } catch (e) {
       throw CacheException();

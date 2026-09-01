@@ -1,11 +1,10 @@
 import 'package:equatable/equatable.dart';
-import '../../domain/entities/breathing_mode.dart';
 
 abstract class BreathingEvent extends Equatable {
   const BreathingEvent();
 
   @override
-  List<Object> get props => [];
+  List<Object?> get props => [];
 }
 
 class LoadBreathingSettings extends BreathingEvent {}
@@ -18,12 +17,18 @@ class ResumeBreathing extends BreathingEvent {}
 
 class StopBreathing extends BreathingEvent {}
 
-class ChangeBreathingMode extends BreathingEvent {
-  final BreathingMode mode;
-  const ChangeBreathingMode(this.mode);
+class ChangeTechnique extends BreathingEvent {
+  final String techniqueId;
+
+  /// Why this technique was picked this time (e.g. 'calm', 'sleep'),
+  /// carried through to session analytics. Null when picked directly
+  /// rather than via a need-based entry point.
+  final String? reason;
+
+  const ChangeTechnique(this.techniqueId, {this.reason});
 
   @override
-  List<Object> get props => [mode];
+  List<Object?> get props => [techniqueId, reason];
 }
 
 class ChangeSessionDuration extends BreathingEvent {

@@ -2,47 +2,62 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/premium_controls.dart';
-import '../../domain/entities/breathing_mode.dart';
+import '../../domain/entities/breathing_technique_catalog.dart';
 
 class MomentOption {
   final String label;
-  final BreathingMode mode;
+  final String techniqueId;
   final int durationMinutes;
+  final String? reason;
 
   const MomentOption({
     required this.label,
-    required this.mode,
+    required this.techniqueId,
     required this.durationMinutes,
+    this.reason,
   });
 }
 
-const List<MomentOption> kMomentOptions = [
+final List<MomentOption> kMomentOptions = [
   MomentOption(
     label: 'Calm down',
-    mode: BreathingMode.box,
-    durationMinutes: 3,
+    techniqueId: 'box',
+    durationMinutes: BreathingTechniqueCatalog.byId('box').recommendedDuration,
+    reason: 'calm',
   ),
-  MomentOption(label: 'Relax', mode: BreathingMode.calm, durationMinutes: 5),
+  MomentOption(
+    label: 'Relax',
+    techniqueId: 'calm478',
+    durationMinutes:
+        BreathingTechniqueCatalog.byId('calm478').recommendedDuration,
+    reason: 'calm',
+  ),
   MomentOption(
     label: 'Sleep',
-    mode: BreathingMode.sleep,
-    durationMinutes: 10,
+    techniqueId: 'sleep',
+    durationMinutes:
+        BreathingTechniqueCatalog.byId('sleep').recommendedDuration,
+    reason: 'sleep',
   ),
   MomentOption(
     label: 'Focus',
-    mode: BreathingMode.coherence,
-    durationMinutes: 5,
+    techniqueId: 'coherence',
+    durationMinutes:
+        BreathingTechniqueCatalog.byId('coherence').recommendedDuration,
+    reason: 'focus',
   ),
   MomentOption(
     label: 'Quick reset',
-    mode: BreathingMode.quickReset,
-    durationMinutes: 1,
+    techniqueId: 'quickReset',
+    durationMinutes:
+        BreathingTechniqueCatalog.byId('quickReset').recommendedDuration,
+    reason: 'overwhelmed',
   ),
 ];
 
 /// "What do you need right now?" — a row of need-first shortcuts that
 /// jump straight into a matching technique and duration, supplementing
-/// (not replacing) the technique-first mode selector.
+/// (not replacing) the full technique library.
 class MomentPicker extends StatelessWidget {
   final ValueChanged<MomentOption> onSelect;
   final bool hapticsEnabled;

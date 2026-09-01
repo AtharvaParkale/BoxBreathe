@@ -9,7 +9,8 @@ import '../widgets/moment_picker.dart';
 import '../bloc/breathing_bloc.dart';
 import '../bloc/breathing_event.dart';
 import '../bloc/breathing_state.dart';
-import '../../domain/entities/breathing_mode.dart';
+import '../../domain/entities/breathing_pattern.dart';
+import 'technique_library_page.dart';
 import '../../../../features/settings/presentation/bloc/settings_bloc.dart';
 import '../../../../features/settings/presentation/pages/settings_page.dart';
 import '../../../../features/progress/presentation/pages/progress_page.dart';
@@ -34,7 +35,7 @@ class _BreathingPageState extends State<BreathingPage>
   int _countdownValue = 3;
 
   // Haptic State Tracking
-  BreathingPhase? _lastPhase;
+  BreathingPhaseKind? _lastPhase;
 
   // Timer that returns the UI to "ready" a moment after a session completes
   Timer? _completionTimer;
@@ -99,9 +100,8 @@ class _BreathingPageState extends State<BreathingPage>
 
   void _onBreathingTick() {
     final state = context.read<BreathingBloc>().state;
-    final phaseInfo = _calculatePhaseAndScale(
+    final phaseInfo = state.technique.pattern.phaseAt(
       _breathingController.value,
-      state.mode,
     );
 
     // Haptics & Sound Trigger
@@ -130,45 +130,10 @@ class _BreathingPageState extends State<BreathingPage>
     });
   }
 
-  ({BreathingPhase phase, double scale}) _calculatePhaseAndScale(
-    double t,
-    BreathingMode mode,
-  ) {
-    int total = mode.cycleDurationMs;
-    if (total == 0) {
-      return (phase: BreathingPhase.inhale, scale: 0.6); // Safety
-    }
-
-    // Normalize durations to 0.0 - 1.0 range
-    double inhaleEnd = mode.inhaleDurationMs / total;
-    double holdFullEnd = inhaleEnd + (mode.holdFullDurationMs / total);
-    double exhaleEnd = holdFullEnd + (mode.exhaleDurationMs / total);
-
-    // Identify Phase and calculate Scale
-    if (t <= inhaleEnd) {
-      // INHALE: 0.6 -> 1.0
-      double localT = t / inhaleEnd;
-      // Use efficient sine-like curve: easeInOutCubicEmphasized is good but custom sine is smoother for breathing
-      double curve = Curves.easeInOut.transform(localT);
-      return (phase: BreathingPhase.inhale, scale: 0.6 + (0.4 * curve));
-    } else if (t <= holdFullEnd) {
-      // HOLD FULL: 1.0
-      return (phase: BreathingPhase.holdFull, scale: 1.0);
-    } else if (t <= exhaleEnd) {
-      // EXHALE: 1.0 -> 0.6
-      double localT = (t - holdFullEnd) / (mode.exhaleDurationMs / total);
-      double curve = Curves.easeInOut.transform(localT);
-      return (phase: BreathingPhase.exhale, scale: 1.0 - (0.4 * curve));
-    } else {
-      // HOLD EMPTY: 0.6
-      return (phase: BreathingPhase.holdEmpty, scale: 0.6);
-    }
-  }
-
   void _selectMoment(MomentOption option) {
     if (_isCountingDown) return;
     final bloc = context.read<BreathingBloc>();
-    bloc.add(ChangeBreathingMode(option.mode));
+    bloc.add(ChangeTechnique(option.techniqueId, reason: option.reason));
     bloc.add(ChangeSessionDuration(option.durationMinutes));
     _startSession();
   }
@@ -205,9 +170,9 @@ class _BreathingPageState extends State<BreathingPage>
     });
 
     // Start Breathing Animation & BLoC Timer
-    final mode = context.read<BreathingBloc>().state.mode;
+    final technique = context.read<BreathingBloc>().state.technique;
     _breathingController.duration = Duration(
-      milliseconds: mode.cycleDurationMs,
+      milliseconds: technique.pattern.cycleDurationMs,
     );
     _breathingController.repeat();
     context.read<BreathingBloc>().add(StartBreathing());
@@ -236,7 +201,8 @@ class _BreathingPageState extends State<BreathingPage>
   Widget build(BuildContext context) {
     return BlocConsumer<BreathingBloc, BreathingState>(
       listenWhen: (previous, current) =>
-          previous.status != current.status || previous.mode != current.mode,
+          previous.status != current.status ||
+          previous.technique != current.technique,
       listener: (context, state) {
         if (state.status == BreathingStatus.active) {
           WakelockPlus.enable();
@@ -265,11 +231,11 @@ class _BreathingPageState extends State<BreathingPage>
         } else if (state.status == BreathingStatus.initial) {
           _breathingController.reset();
           _breathingController.value = 0.0; // Ensure start small
-        } else if (state.mode.cycleDurationMs !=
+        } else if (state.technique.pattern.cycleDurationMs !=
             _breathingController.duration?.inMilliseconds) {
-          // Mode changed
+          // Technique changed
           _breathingController.duration = Duration(
-            milliseconds: state.mode.cycleDurationMs,
+            milliseconds: state.technique.pattern.cycleDurationMs,
           );
         }
       },
@@ -299,17 +265,22 @@ class _BreathingPageState extends State<BreathingPage>
                         PremiumIconButton(
                           icon: Icons.grid_view_rounded,
                           hapticsEnabled: hapticsEnabled,
-                          semanticLabel: 'Choose breathing mode',
+                          semanticLabel: 'Browse breathing techniques',
                           onTap: _isCountingDown
                               ? null
-                              : () => _showModeSelector(context),
+                              : () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const TechniqueLibraryPage(),
+                                  ),
+                                ),
                         ),
-                        // Mode Label (Center)
+                        // Technique Label (Center)
                         Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              state.mode.name.toUpperCase(),
+                              state.technique.name.toUpperCase(),
                               style: theme.textTheme.labelSmall?.copyWith(
                                 letterSpacing: 2.0,
                                 fontWeight: FontWeight.w600,
@@ -318,7 +289,9 @@ class _BreathingPageState extends State<BreathingPage>
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              '${_formatDuration(state.mode.inhaleDurationMs)} · ${_formatDuration(state.mode.holdFullDurationMs)} · ${_formatDuration(state.mode.exhaleDurationMs)} · ${_formatDuration(state.mode.holdEmptyDurationMs)}',
+                              state.technique.pattern.segments
+                                  .map((s) => _formatDuration(s.durationMs))
+                                  .join(' · '),
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: Colors.white.withValues(alpha: 0.28),
                                 letterSpacing: 1.2,
@@ -369,12 +342,10 @@ class _BreathingPageState extends State<BreathingPage>
                       ]),
                       builder: (context, child) {
                         // Determine Phase & Scale
-                        final phaseInfo = _calculatePhaseAndScale(
+                        final phaseInfo = state.technique.pattern.phaseAt(
                           _breathingController.value,
-                          state.mode,
                         );
-                        String displayLabel = phaseInfo.phase.displayLabel
-                            .toUpperCase();
+                        String displayLabel = phaseInfo.label.toUpperCase();
                         double scale = phaseInfo.scale; // 0.6 to 1.0 range
 
                         // Map scale (0.6 - 1.0) to Opacity — ghostly at rest, luminous when full
@@ -747,81 +718,9 @@ class _BreathingPageState extends State<BreathingPage>
     return seconds == seconds.toInt() ? '${seconds.toInt()}s' : '${seconds}s';
   }
 
-  void _showModeSelector(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.38,
-        minChildSize: 0.3,
-        maxChildSize: 0.8,
-        expand: false,
-        builder: (context, scrollController) {
-          return Container(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  "Breathing Mode",
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 24),
-                Expanded(
-                  child: ListView(
-                    controller: scrollController,
-                    padding: const EdgeInsets.only(bottom: 48),
-                    children: [
-                      ...BreathingMode.values.map(
-                        (mode) => ListTile(
-                          title: Text(mode.name),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          onTap: () {
-                            context.read<BreathingBloc>().add(
-                              ChangeBreathingMode(mode),
-                            );
-                            _breathingController.duration = Duration(
-                              milliseconds: mode.cycleDurationMs,
-                            );
-                            Navigator.pop(context);
-                          },
-                          trailing:
-                              context.read<BreathingBloc>().state.mode == mode
-                              ? Icon(
-                                  Icons.circle,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 12,
-                                )
-                              : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   void _showDurationSelector(BuildContext context) {
-    final durations = [1, 3, 5, 10, -1];
+    final durations =
+        context.read<BreathingBloc>().state.technique.availableDurations;
     showModalBottomSheet(
       context: context,
       builder: (_) => Container(

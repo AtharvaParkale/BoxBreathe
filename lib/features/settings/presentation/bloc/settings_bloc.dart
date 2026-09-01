@@ -18,6 +18,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<ToggleHaptic>(_onToggleHaptic);
     on<SetDailyReminder>(_onSetDailyReminder);
     on<CancelDailyReminder>(_onCancelDailyReminder);
+    on<ToggleFavoriteTechnique>(_onToggleFavoriteTechnique);
   }
 
   Future<void> _onLoadSettings(
@@ -90,5 +91,20 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     emit(state.copyWith(settings: newSettings));
 
     NotificationHelper.cancelReminders();
+  }
+
+  Future<void> _onToggleFavoriteTechnique(
+    ToggleFavoriteTechnique event,
+    Emitter<SettingsState> emit,
+  ) async {
+    final current = state.settings.favoriteTechniqueIds;
+    final updated = current.contains(event.techniqueId)
+        ? current.where((id) => id != event.techniqueId).toList()
+        : [...current, event.techniqueId];
+    final newSettings = state.settings.copyWith(
+      favoriteTechniqueIds: updated,
+    );
+    await saveSettings(newSettings);
+    emit(state.copyWith(settings: newSettings));
   }
 }

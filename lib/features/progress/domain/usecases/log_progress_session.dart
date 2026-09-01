@@ -17,6 +17,8 @@ class LogProgressSession {
     required DateTime startedAt,
     required DateTime completedAt,
     required String dateKeyLocal,
+    bool completed = true,
+    String? reason,
   }) {
     return repository.logSession(
       ProgressSessionRecord(
@@ -27,6 +29,8 @@ class LogProgressSession {
         startedAt: startedAt,
         completedAt: completedAt,
         dateKeyLocal: dateKeyLocal,
+        completed: completed,
+        reason: reason,
       ),
     );
   }

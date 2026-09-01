@@ -26,4 +26,10 @@ abstract class ProgressRepository {
   /// checks every achievement definition, persisting (and returning) at
   /// most one newly-crossed achievement.
   Future<Either<Failure, PostSessionReward>> evaluatePostSessionReward();
+
+  /// Most recent sessions, newest first — the source for "Continue where
+  /// you left off". Local-only read, no network dependency.
+  Future<Either<Failure, List<ProgressSessionRecord>>> getRecentSessions({
+    int limit,
+  });
 }

@@ -22,6 +22,11 @@ class BreathingSessionRecord extends Equatable {
   /// not something the breathing session logic should need to know.
   final String? source;
 
+  /// Why the technique was picked this time (e.g. 'calm', 'sleep'), if the
+  /// user arrived via a need-based entry point. Captured for future
+  /// personalization, not currently surfaced in any UI.
+  final String? reason;
+
   const BreathingSessionRecord({
     required this.id,
     required this.techniqueId,
@@ -33,6 +38,7 @@ class BreathingSessionRecord extends Equatable {
     required this.completed,
     required this.dateKeyLocal,
     this.source,
+    this.reason,
   });
 
   @override
@@ -47,5 +53,6 @@ class BreathingSessionRecord extends Equatable {
     completed,
     dateKeyLocal,
     source,
+    reason,
   ];
 }

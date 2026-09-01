@@ -14,6 +14,8 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
   static const String keyHaptic = 'settings_haptic';
   static const String keyReminderHour = 'settings_reminder_hour';
   static const String keyReminderMinute = 'settings_reminder_minute';
+  static const String keyFavoriteTechniqueIds =
+      'settings_favorite_technique_ids';
 
   SettingsLocalDataSourceImpl(this.box);
 
@@ -25,6 +27,9 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
       final haptic = box.get(keyHaptic, defaultValue: true) as bool;
       final reminderHour = box.get(keyReminderHour, defaultValue: -1) as int;
       final reminderMinute = box.get(keyReminderMinute, defaultValue: 0) as int;
+      final favoriteTechniqueIds =
+          (box.get(keyFavoriteTechniqueIds) as List?)?.cast<String>() ??
+          const <String>[];
 
       return Settings(
         isSoundEnabled: sound,
@@ -32,6 +37,7 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
         isHapticEnabled: haptic,
         dailyReminderHour: reminderHour,
         dailyReminderMinute: reminderMinute,
+        favoriteTechniqueIds: favoriteTechniqueIds,
       );
     } catch (e) {
       throw CacheException();
@@ -46,6 +52,7 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
       await box.put(keyHaptic, settings.isHapticEnabled);
       await box.put(keyReminderHour, settings.dailyReminderHour);
       await box.put(keyReminderMinute, settings.dailyReminderMinute);
+      await box.put(keyFavoriteTechniqueIds, settings.favoriteTechniqueIds);
     } catch (e) {
       throw CacheException();
     }

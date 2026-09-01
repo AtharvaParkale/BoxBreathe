@@ -44,6 +44,8 @@ class ProgressLocalDataSourceImpl implements ProgressLocalDataSource {
         'startedAtMillis': record.startedAt.millisecondsSinceEpoch,
         'completedAtMillis': record.completedAt.millisecondsSinceEpoch,
         'dateKeyLocal': record.dateKeyLocal,
+        'completed': record.completed,
+        'reason': record.reason,
       });
     } catch (e) {
       throw CacheException();
@@ -70,6 +72,11 @@ class ProgressLocalDataSourceImpl implements ProgressLocalDataSource {
             data['completedAtMillis'] as int,
           ),
           dateKeyLocal: data['dateKeyLocal'] as String,
+          // Legacy records written before these fields existed: every one
+          // of them really was a natural completion (aborts were never
+          // logged), so `true`/null are the historically-accurate default.
+          completed: data['completed'] as bool? ?? true,
+          reason: data['reason'] as String?,
         );
       }).toList();
     } catch (e) {

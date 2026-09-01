@@ -45,6 +45,7 @@ import 'features/progress/data/repositories/progress_repository_impl.dart';
 import 'features/progress/domain/repositories/progress_repository.dart';
 import 'features/progress/domain/usecases/get_post_session_reward.dart';
 import 'features/progress/domain/usecases/get_progress_summary.dart';
+import 'features/progress/domain/usecases/get_recent_sessions.dart';
 import 'features/progress/domain/usecases/log_progress_session.dart';
 import 'features/progress/domain/usecases/sync_progress.dart';
 import 'features/progress/presentation/bloc/progress_bloc.dart';
@@ -204,6 +205,7 @@ Future<void> init() async {
   sl.registerLazySingleton(() => GetProgressSummary(sl()));
   sl.registerLazySingleton(() => SyncProgress(sl()));
   sl.registerLazySingleton(() => GetPostSessionReward(sl()));
+  sl.registerLazySingleton(() => GetRecentSessions(sl()));
 
   // Repository
   sl.registerLazySingleton<ProgressRepository>(

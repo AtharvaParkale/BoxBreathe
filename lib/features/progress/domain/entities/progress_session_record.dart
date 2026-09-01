@@ -19,6 +19,18 @@ class ProgressSessionRecord extends Equatable {
   /// device timezone.
   final String dateKeyLocal;
 
+  /// Whether the session finished naturally. Defaults to true because only
+  /// natural completions have ever been logged historically — aborted
+  /// sessions are not currently recorded at all, so every existing record
+  /// really was completed. Streak/achievement math filters on this so a
+  /// future change to also log aborts can't silently affect them.
+  final bool completed;
+
+  /// Why the technique was picked this time (e.g. 'calm', 'sleep'), if the
+  /// user arrived via a need-based entry point. Not currently surfaced in
+  /// any UI — captured for future personalization.
+  final String? reason;
+
   const ProgressSessionRecord({
     required this.id,
     required this.techniqueId,
@@ -27,6 +39,8 @@ class ProgressSessionRecord extends Equatable {
     required this.startedAt,
     required this.completedAt,
     required this.dateKeyLocal,
+    this.completed = true,
+    this.reason,
   });
 
   @override
@@ -38,5 +52,7 @@ class ProgressSessionRecord extends Equatable {
     startedAt,
     completedAt,
     dateKeyLocal,
+    completed,
+    reason,
   ];
 }

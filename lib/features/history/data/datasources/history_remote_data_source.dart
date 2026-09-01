@@ -48,6 +48,7 @@ class FirestoreHistoryRemoteDataSourceImpl implements HistoryRemoteDataSource {
       'completed': record.completed,
       'dateKeyLocal': record.dateKeyLocal,
       'source': record.source ?? _currentSource(),
+      'reason': record.reason,
     });
   }
 
@@ -88,6 +89,7 @@ class FirestoreHistoryRemoteDataSourceImpl implements HistoryRemoteDataSource {
             data['dateKeyLocal'] as String? ??
             dateKeyFor(completedAt.toLocal()),
         source: data['source'] as String?,
+        reason: data['reason'] as String?,
       );
     }).toList();
   }
