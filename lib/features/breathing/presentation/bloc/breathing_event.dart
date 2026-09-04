@@ -40,3 +40,11 @@ class ChangeSessionDuration extends BreathingEvent {
 }
 
 class TimerTick extends BreathingEvent {}
+
+/// Dispatched at app startup and whenever the app returns to the
+/// foreground. Reads any persisted active-session snapshot and recomputes
+/// where the session actually is from real elapsed time — this is how a
+/// session that kept running (or finished) while backgrounded or the app
+/// was killed gets reconciled, rather than trusting whatever in-memory
+/// state happens to still be around.
+class ReconcileSession extends BreathingEvent {}

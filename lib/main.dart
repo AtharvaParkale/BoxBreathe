@@ -33,7 +33,11 @@ class BoxBreatheApp extends StatelessWidget {
       providers: [
         BlocProvider(create: (_) => di.sl<AuthBloc>()..add(AppStarted())),
         BlocProvider(
-          create: (_) => di.sl<BreathingBloc>()..add(LoadBreathingSettings()),
+          create: (_) => di.sl<BreathingBloc>()
+            ..add(LoadBreathingSettings())
+            // Cold start after the process was killed mid-session: reconcile
+            // against real elapsed time before any page even builds.
+            ..add(ReconcileSession()),
         ),
         BlocProvider(create: (_) => di.sl<SettingsBloc>()..add(LoadSettings())),
       ],

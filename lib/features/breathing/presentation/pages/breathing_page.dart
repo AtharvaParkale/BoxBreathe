@@ -16,6 +16,7 @@ import '../../../../features/settings/presentation/pages/settings_page.dart';
 import '../../../../features/progress/presentation/pages/progress_page.dart';
 import '../../../../injection_container.dart' as di;
 import '../../../../core/services/sound_service.dart';
+import '../../../../core/services/breathing_audio_handler.dart';
 
 class BreathingPage extends StatefulWidget {
   const BreathingPage({super.key});
@@ -40,10 +41,24 @@ class _BreathingPageState extends State<BreathingPage>
   // Timer that returns the UI to "ready" a moment after a session completes
   Timer? _completionTimer;
 
+  // Audio interruptions (calls, Bluetooth/headphone route changes) reported
+  // by the background audio handler — treated exactly like a manual pause.
+  StreamSubscription<void>? _audioInterruptionSubscription;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _audioInterruptionSubscription = di
+        .sl<BreathingAudioHandler>()
+        .onInterruption
+        .listen((_) {
+          if (mounted &&
+              context.read<BreathingBloc>().state.status ==
+                  BreathingStatus.active) {
+            _pauseSession();
+          }
+        });
     // Breathing Controller
     _breathingController = AnimationController(
       vsync: this,
@@ -83,18 +98,26 @@ class _BreathingPageState extends State<BreathingPage>
     _breathingController.dispose();
     _glowController.dispose();
     _completionTimer?.cancel();
+    _audioInterruptionSubscription?.cancel();
     WakelockPlus.disable();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted) return;
+    final bloc = context.read<BreathingBloc>();
     if ((state == AppLifecycleState.paused ||
             state == AppLifecycleState.inactive) &&
-        mounted &&
-        context.read<BreathingBloc>().state.status ==
-            BreathingStatus.active) {
-      _pauseSession();
+        bloc.state.status == BreathingStatus.active) {
+      // Stop the local animation only — the session itself keeps running,
+      // tracked by wall-clock time in the bloc/persisted snapshot. Calling
+      // `_pauseSession()` here would dispatch `PauseBreathing`, which
+      // incorrectly freezes elapsed session time while merely backgrounded
+      // (as opposed to a real user-initiated pause).
+      _breathingController.stop();
+    } else if (state == AppLifecycleState.resumed) {
+      bloc.add(ReconcileSession());
     }
   }
 
@@ -120,6 +143,46 @@ class _BreathingPageState extends State<BreathingPage>
       }
       _lastPhase = phaseInfo.phase;
     }
+  }
+
+  // Background/lock-screen audio presence — only when the user has sound
+  // cues enabled (no silent keep-alive). See `BreathingAudioHandler` for why
+  // this is a continuous loop of the user's own ambience cue rather than a
+  // bare media-session flag.
+  void _startAudioSession(BreathingState state) {
+    if (!context.read<SettingsBloc>().state.settings.isSoundEnabled) return;
+    final settings = context.read<SettingsBloc>().state.settings;
+    unawaited(
+      di.sl<BreathingAudioHandler>().startSession(
+        sessionId: 'ease-session',
+        techniqueName: state.technique.name,
+        sessionDurationMinutes: state.sessionDurationMinutes,
+        ambienceCue: settings.soundCue,
+        elapsed: Duration(milliseconds: state.sessionElapsedMs),
+      ),
+    );
+  }
+
+  void _pauseAudioSession(BreathingState state) {
+    if (!context.read<SettingsBloc>().state.settings.isSoundEnabled) return;
+    unawaited(
+      di.sl<BreathingAudioHandler>().pauseSession(
+        Duration(milliseconds: state.sessionElapsedMs),
+      ),
+    );
+  }
+
+  void _resumeAudioSession(BreathingState state) {
+    if (!context.read<SettingsBloc>().state.settings.isSoundEnabled) return;
+    unawaited(
+      di.sl<BreathingAudioHandler>().resumeSession(
+        Duration(milliseconds: state.sessionElapsedMs),
+      ),
+    );
+  }
+
+  void _endAudioSession() {
+    unawaited(di.sl<BreathingAudioHandler>().endSession());
   }
 
   void _triggerPhaseHaptic() {
@@ -170,16 +233,19 @@ class _BreathingPageState extends State<BreathingPage>
     });
 
     // Start Breathing Animation & BLoC Timer
-    final technique = context.read<BreathingBloc>().state.technique;
+    final bloc = context.read<BreathingBloc>();
+    final technique = bloc.state.technique;
     _breathingController.duration = Duration(
       milliseconds: technique.pattern.cycleDurationMs,
     );
     _breathingController.repeat();
-    context.read<BreathingBloc>().add(StartBreathing());
+    _startAudioSession(bloc.state);
+    bloc.add(StartBreathing());
   }
 
   void _pauseSession() {
     _breathingController.stop();
+    _pauseAudioSession(context.read<BreathingBloc>().state);
     context.read<BreathingBloc>().add(PauseBreathing());
   }
 
@@ -194,6 +260,7 @@ class _BreathingPageState extends State<BreathingPage>
       },
     );
 
+    _resumeAudioSession(context.read<BreathingBloc>().state);
     context.read<BreathingBloc>().add(ResumeBreathing());
   }
 
@@ -202,7 +269,8 @@ class _BreathingPageState extends State<BreathingPage>
     return BlocConsumer<BreathingBloc, BreathingState>(
       listenWhen: (previous, current) =>
           previous.status != current.status ||
-          previous.technique != current.technique,
+          previous.technique != current.technique ||
+          current.justReconciled,
       listener: (context, state) {
         if (state.status == BreathingStatus.active) {
           WakelockPlus.enable();
@@ -210,7 +278,39 @@ class _BreathingPageState extends State<BreathingPage>
           WakelockPlus.disable();
         }
 
+        if (state.justReconciled &&
+            (state.status == BreathingStatus.active ||
+                state.status == BreathingStatus.paused)) {
+          // Re-anchor the visual animation to the bloc's authoritative
+          // elapsed time — this is the one place the UI is allowed to seed
+          // itself from session time, and only at this single discontinuity
+          // (session start/resume have their own seeding already; this
+          // covers "returned from background/relaunch").
+          final cycleMs = state.technique.pattern.cycleDurationMs;
+          final t = cycleMs <= 0
+              ? 0.0
+              : (state.sessionElapsedMs % cycleMs) / cycleMs;
+          _breathingController.duration = Duration(milliseconds: cycleMs);
+          // Silently re-sync the last-seen phase — do NOT fire a catch-up
+          // sound/haptic for whatever phase changes happened while away.
+          _lastPhase = state.technique.pattern.phaseAt(t).phase;
+          _breathingController.value = t;
+          if (state.status == BreathingStatus.active) {
+            _breathingController.forward(from: t).whenComplete(() {
+              if (context.read<BreathingBloc>().state.status ==
+                  BreathingStatus.active) {
+                _breathingController.repeat();
+              }
+            });
+            _startAudioSession(state);
+          } else {
+            _pauseAudioSession(state);
+          }
+          return;
+        }
+
         if (state.status == BreathingStatus.completed) {
+          _endAudioSession();
           _breathingController.stop();
           // Check settings before haptic
           if (context.read<SettingsBloc>().state.settings.isHapticEnabled) {
@@ -575,6 +675,7 @@ class _BreathingPageState extends State<BreathingPage>
                               hapticsEnabled: hapticsEnabled,
                               semanticLabel: 'Reset session',
                               onTap: () {
+                                _endAudioSession();
                                 context.read<BreathingBloc>().add(
                                   StopBreathing(),
                                 );

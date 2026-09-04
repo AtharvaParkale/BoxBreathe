@@ -10,6 +10,19 @@ class BreathingState extends Equatable {
   final int sessionDurationMinutes; // Target duration
   final int sessionRemainingSeconds; // Countdown
 
+  /// Authoritative elapsed time within the current session, as computed by
+  /// the timestamp-driven session engine — the only value the UI should
+  /// ever use to re-anchor its animation, never something it derives
+  /// itself. Reset to 0 on start/stop.
+  final int sessionElapsedMs;
+
+  /// True for exactly the one emission right after `ReconcileSession` found
+  /// an in-progress (not finished) session — tells the UI to re-seed its
+  /// animation controller from [sessionElapsedMs] instead of treating this
+  /// like a normal tick. Always false otherwise; the page must not persist
+  /// this flag itself, only react to it once.
+  final bool justReconciled;
+
   /// Why the current technique was picked this time (e.g. 'calm', 'sleep')
   /// — set by need-based entry points (moment picker, quick relief), null
   /// when a technique is chosen directly. Used for session analytics.
@@ -26,6 +39,8 @@ class BreathingState extends Equatable {
     BreathingTechnique? technique,
     this.sessionDurationMinutes = 3,
     this.sessionRemainingSeconds = 0,
+    this.sessionElapsedMs = 0,
+    this.justReconciled = false,
     this.selectedReason,
     this.postSessionStreakDays,
     this.postSessionAchievementTitle,
@@ -40,6 +55,11 @@ class BreathingState extends Equatable {
     BreathingTechnique? technique,
     int? sessionDurationMinutes,
     int? sessionRemainingSeconds,
+    int? sessionElapsedMs,
+    // Deliberately not nullable/preserved: `justReconciled` is a one-shot
+    // signal for the single emission after a reconcile, so every other
+    // emit must explicitly reset it rather than inheriting `true` forever.
+    bool justReconciled = false,
     String? selectedReason,
     bool clearSelectedReason = false,
     int? postSessionStreakDays,
@@ -53,6 +73,8 @@ class BreathingState extends Equatable {
           sessionDurationMinutes ?? this.sessionDurationMinutes,
       sessionRemainingSeconds:
           sessionRemainingSeconds ?? this.sessionRemainingSeconds,
+      sessionElapsedMs: sessionElapsedMs ?? this.sessionElapsedMs,
+      justReconciled: justReconciled,
       selectedReason: clearSelectedReason
           ? null
           : (selectedReason ?? this.selectedReason),
@@ -71,6 +93,8 @@ class BreathingState extends Equatable {
     technique,
     sessionDurationMinutes,
     sessionRemainingSeconds,
+    sessionElapsedMs,
+    justReconciled,
     selectedReason,
     postSessionStreakDays,
     postSessionAchievementTitle,

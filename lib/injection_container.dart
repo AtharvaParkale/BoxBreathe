@@ -1,9 +1,11 @@
+import 'package:audio_service/audio_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'core/services/breathing_audio_handler.dart';
 import 'core/services/id_generator.dart';
 import 'core/services/notification_helper.dart';
 import 'core/services/sound_service.dart';
@@ -25,6 +27,7 @@ import 'features/settings/domain/repositories/settings_repository.dart';
 import 'features/settings/domain/usecases/get_settings.dart';
 import 'features/settings/domain/usecases/save_settings.dart';
 import 'features/settings/presentation/bloc/settings_bloc.dart';
+import 'features/breathing/data/datasources/active_session_storage.dart';
 import 'features/breathing/data/datasources/breathing_local_data_source.dart';
 import 'features/breathing/data/repositories/breathing_repository_impl.dart';
 import 'features/breathing/domain/repositories/breathing_repository.dart';
@@ -44,6 +47,7 @@ import 'features/progress/data/datasources/progress_local_data_source.dart';
 import 'features/progress/data/repositories/progress_repository_impl.dart';
 import 'features/progress/domain/repositories/progress_repository.dart';
 import 'features/progress/domain/usecases/get_post_session_reward.dart';
+import 'features/progress/domain/usecases/has_logged_session.dart';
 import 'features/progress/domain/usecases/get_progress_summary.dart';
 import 'features/progress/domain/usecases/get_recent_sessions.dart';
 import 'features/progress/domain/usecases/log_progress_session.dart';
@@ -114,7 +118,9 @@ Future<void> init() async {
       logRemoteSession: sl(),
       logProgressSession: sl(),
       getPostSessionReward: sl(),
+      hasLoggedSession: sl(),
       idGenerator: sl(),
+      activeSessionStorage: sl(),
     ),
   );
 
@@ -164,6 +170,24 @@ Future<void> init() async {
   // Features - Onboarding (first-launch flag only, reuses the shared box)
   sl.registerLazySingleton(() => OnboardingStorage(box));
 
+  // Background/lock-screen session support: persisted snapshot of the one
+  // in-progress session (own box — transient session state, not a settings
+  // record) and the audio_service handler that owns the real background
+  // audio session + Now Playing/lock-screen card.
+  final activeSessionBox = await Hive.openBox('active_session');
+  sl.registerLazySingleton(() => ActiveSessionStorage(activeSessionBox));
+  sl.registerSingleton<BreathingAudioHandler>(
+    await AudioService.init(
+      builder: () => BreathingAudioHandler(),
+      config: AudioServiceConfig(
+        androidNotificationChannelId: 'com.justonedev.BoxBreathe.audio',
+        androidNotificationChannelName: 'Breathing session',
+        androidNotificationOngoing: true,
+        androidStopForegroundOnPause: false,
+      ),
+    ),
+  );
+
   // Features - History
   // Use cases
   sl.registerLazySingleton(() => GetHistory(sl()));
@@ -205,6 +229,7 @@ Future<void> init() async {
   sl.registerLazySingleton(() => GetProgressSummary(sl()));
   sl.registerLazySingleton(() => SyncProgress(sl()));
   sl.registerLazySingleton(() => GetPostSessionReward(sl()));
+  sl.registerLazySingleton(() => HasLoggedSession(sl()));
   sl.registerLazySingleton(() => GetRecentSessions(sl()));
 
   // Repository

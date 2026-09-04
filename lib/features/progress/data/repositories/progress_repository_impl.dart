@@ -174,6 +174,11 @@ class ProgressRepositoryImpl implements ProgressRepository {
     }
   }
 
+  @override
+  Future<bool> hasLoggedSession(String sessionId) async {
+    return localDataSource.hasSession(sessionId);
+  }
+
   WeekSummary _computeWeekSummary(
     List<ProgressSessionRecord> sessions,
     DateTime now,

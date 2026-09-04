@@ -32,4 +32,9 @@ abstract class ProgressRepository {
   Future<Either<Failure, List<ProgressSessionRecord>>> getRecentSessions({
     int limit,
   });
+
+  /// Whether a session with this id has already been recorded — the dedup
+  /// guard used both by remote sync and by background-session reconciliation
+  /// so a completion is never logged twice.
+  Future<bool> hasLoggedSession(String sessionId);
 }
