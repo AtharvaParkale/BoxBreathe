@@ -2,30 +2,33 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
-import 'package:audioplayers/audioplayers.dart' as ap;
 
 /// Owns the real background-audio session (`AVAudioSession` on iOS, the
 /// media-session foreground service on Android, both managed by
 /// `audio_service`) and the Now Playing / lock-screen card for an
 /// in-progress breathing session.
 ///
-/// Only ever started when the user has sound cues enabled — the continuous
-/// low-volume loop played here *is* the user's own selected ambience cue,
-/// simply held on for the session's duration instead of only firing in
-/// short bursts. That continuous, real audio output is what genuinely
-/// justifies holding `UIBackgroundModes: audio` / the Android foreground
-/// service open for the session — this is not a keep-alive trick layered on
-/// top of an unrelated feature.
+/// Only ever engaged when the user has sound cues enabled. This handler
+/// deliberately does **not** play its own audio track: the app's existing
+/// per-phase cue sounds (`SoundService`, fired on every breathing phase
+/// change via the same `audio_session`-configured category) are the real,
+/// periodic audio output that justifies holding `UIBackgroundModes: audio` /
+/// the Android foreground service open for the session. This handler's job
+/// is solely to configure that shared audio session category and publish
+/// Now Playing info from real elapsed time — an earlier version looped one
+/// of the short one-shot phase-cue clips as a fake "ambience" track, which
+/// produced an audible rapid-fire clicking loop for short cues (tick/bell/
+/// chime) instead of anything resembling ambience.
 ///
 /// Position is pushed once per discontinuity (start/pause/resume/reconcile),
 /// not every second — `audio_service` extrapolates the live countdown shown
 /// on the lock screen from `updatePosition` + `updateTime` + `speed`.
 class BreathingAudioHandler extends BaseAudioHandler {
-  final ap.AudioPlayer _player = ap.AudioPlayer();
   final _interruptionController = StreamController<void>.broadcast();
 
   StreamSubscription<AudioInterruptionEvent>? _interruptionSub;
   StreamSubscription<void>? _becomingNoisySub;
+  Future<void>? _configured;
 
   /// Fires when playback should pause due to a genuine interruption
   /// (incoming call, another app taking audio focus) or a route change
@@ -35,9 +38,11 @@ class BreathingAudioHandler extends BaseAudioHandler {
   /// graceful-failure choice (e.g. don't silently continue after a call).
   Stream<void> get onInterruption => _interruptionController.stream;
 
-  BreathingAudioHandler() {
-    unawaited(_configureSession());
-  }
+  /// Completes once the platform audio session category has actually been
+  /// configured and interruption listeners are attached. Callers should
+  /// await this once at startup before trusting background/interruption
+  /// handling to be live.
+  Future<void> get ready => _configured ??= _configureSession();
 
   Future<void> _configureSession() async {
     final session = await AudioSession.instance;
@@ -54,7 +59,6 @@ class BreathingAudioHandler extends BaseAudioHandler {
     required String sessionId,
     required String techniqueName,
     required int sessionDurationMinutes,
-    required String ambienceCue,
     required Duration elapsed,
   }) async {
     mediaItem.add(
@@ -67,23 +71,18 @@ class BreathingAudioHandler extends BaseAudioHandler {
             : Duration(minutes: sessionDurationMinutes),
       ),
     );
-    await _player.setReleaseMode(ap.ReleaseMode.loop);
-    await _player.play(ap.AssetSource('audio/$ambienceCue.mp3'), volume: 0.12);
     _publish(elapsed: elapsed, playing: true);
   }
 
   Future<void> pauseSession(Duration elapsed) async {
-    await _player.pause();
     _publish(elapsed: elapsed, playing: false);
   }
 
   Future<void> resumeSession(Duration elapsed) async {
-    await _player.resume();
     _publish(elapsed: elapsed, playing: true);
   }
 
   Future<void> endSession() async {
-    await _player.stop();
     playbackState.add(
       PlaybackState(
         playing: false,
@@ -115,6 +114,5 @@ class BreathingAudioHandler extends BaseAudioHandler {
     await _interruptionSub?.cancel();
     await _becomingNoisySub?.cancel();
     await _interruptionController.close();
-    await _player.dispose();
   }
 }

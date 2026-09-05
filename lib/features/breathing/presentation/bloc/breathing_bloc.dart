@@ -98,6 +98,7 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
       state.copyWith(
         status: BreathingStatus.active,
         sessionElapsedMs: 0,
+        activeSessionId: snapshot.sessionId,
         clearPostSessionReward: true,
       ),
     );
@@ -105,6 +106,11 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
   }
 
   void _onPause(PauseBreathing event, Emitter<BreathingState> emit) {
+    // Guards against a rapid double-tap dispatching two PauseBreathing
+    // events: `StreamSubscription.pause()` requires a matching number of
+    // `resume()` calls, so calling it twice here would leave the ticker
+    // stuck paused after a single subsequent ResumeBreathing.
+    if (state.status != BreathingStatus.active) return;
     final snapshot = _activeSnapshot;
     if (snapshot != null && snapshot.pausedAt == null) {
       final paused = snapshot.copyWith(pausedAt: now());
@@ -116,9 +122,14 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
   }
 
   void _onResume(ResumeBreathing event, Emitter<BreathingState> emit) {
+    if (state.status != BreathingStatus.paused) return;
     final snapshot = _activeSnapshot;
     if (snapshot != null && snapshot.pausedAt != null) {
-      final pausedMs = now().difference(snapshot.pausedAt!).inMilliseconds;
+      // Clamp against a backward system-clock adjustment while paused —
+      // a negative value here would reduce `accumulatedPauseMs` and later
+      // inflate the computed elapsed time.
+      final rawPausedMs = now().difference(snapshot.pausedAt!).inMilliseconds;
+      final pausedMs = rawPausedMs < 0 ? 0 : rawPausedMs;
       final resumed = snapshot.copyWith(
         clearPausedAt: true,
         accumulatedPauseMs: snapshot.accumulatedPauseMs + pausedMs,
@@ -130,24 +141,32 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
     emit(state.copyWith(status: BreathingStatus.active));
   }
 
-  void _onStop(StopBreathing event, Emitter<BreathingState> emit) {
+  Future<void> _onStop(StopBreathing event, Emitter<BreathingState> emit) async {
     _tickerSubscription?.cancel();
     _activeSnapshot = null;
-    unawaited(activeSessionStorage.clear());
+    // Awaited (not fire-and-forget) — a deliberate stop/reset should not
+    // leave a race window where the app is swiped away before the Hive
+    // delete flushes, which would let `ReconcileSession` resurrect a
+    // session the user already ended.
+    await activeSessionStorage.clear();
     emit(
       state.copyWith(
         status: BreathingStatus.initial,
         sessionRemainingSeconds: _secondsFor(state.sessionDurationMinutes),
         sessionElapsedMs: 0,
+        clearActiveSessionId: true,
         clearPostSessionReward: true,
       ),
     );
   }
 
-  void _onChangeTechnique(ChangeTechnique event, Emitter<BreathingState> emit) {
+  Future<void> _onChangeTechnique(
+    ChangeTechnique event,
+    Emitter<BreathingState> emit,
+  ) async {
     _tickerSubscription?.cancel();
     _activeSnapshot = null;
-    unawaited(activeSessionStorage.clear());
+    await activeSessionStorage.clear();
     final technique = BreathingTechniqueCatalog.byId(event.techniqueId);
     saveSettings(
       BreathingSettings(
@@ -162,6 +181,7 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
         status: BreathingStatus.initial,
         sessionRemainingSeconds: _secondsFor(state.sessionDurationMinutes),
         sessionElapsedMs: 0,
+        clearActiveSessionId: true,
         selectedReason: event.reason,
         clearSelectedReason: event.reason == null,
       ),
@@ -265,6 +285,7 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
         sessionRemainingSeconds: resolution.remainingSeconds,
         sessionElapsedMs: resolution.elapsedMs,
         justReconciled: true,
+        activeSessionId: snapshot.sessionId,
         selectedReason: snapshot.selectedReason,
         clearSelectedReason: snapshot.selectedReason == null,
       ),
@@ -290,6 +311,11 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
         state.copyWith(
           status: BreathingStatus.completed,
           sessionRemainingSeconds: 0,
+          clearActiveSessionId: true,
+          // A previous run through this method already computed the
+          // real reward — don't leave a stale one from an earlier
+          // session on screen.
+          clearPostSessionReward: true,
         ),
       );
       return;
@@ -325,6 +351,7 @@ class BreathingBloc extends Bloc<BreathingEvent, BreathingState> {
         technique: technique,
         sessionRemainingSeconds: 0,
         sessionElapsedMs: completedDurationSeconds * 1000,
+        clearActiveSessionId: true,
         postSessionStreakDays: reward.fold(
           (_) => null,
           (r) => r.streakDays,

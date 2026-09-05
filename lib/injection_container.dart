@@ -176,17 +176,20 @@ Future<void> init() async {
   // audio session + Now Playing/lock-screen card.
   final activeSessionBox = await Hive.openBox('active_session');
   sl.registerLazySingleton(() => ActiveSessionStorage(activeSessionBox));
-  sl.registerSingleton<BreathingAudioHandler>(
-    await AudioService.init(
-      builder: () => BreathingAudioHandler(),
-      config: AudioServiceConfig(
-        androidNotificationChannelId: 'com.justonedev.BoxBreathe.audio',
-        androidNotificationChannelName: 'Breathing session',
-        androidNotificationOngoing: true,
-        androidStopForegroundOnPause: false,
-      ),
+  final audioHandler = await AudioService.init(
+    builder: () => BreathingAudioHandler(),
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'com.justonedev.BoxBreathe.audio',
+      androidNotificationChannelName: 'Breathing session',
+      androidNotificationOngoing: true,
     ),
   );
+  // Wait for the platform audio session category + interruption listeners
+  // to actually be configured before this handler is considered usable —
+  // otherwise a session started immediately after launch could race ahead
+  // of `_configureSession()` and miss an early interruption.
+  await audioHandler.ready;
+  sl.registerSingleton<BreathingAudioHandler>(audioHandler);
 
   // Features - History
   // Use cases

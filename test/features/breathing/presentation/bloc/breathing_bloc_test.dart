@@ -254,12 +254,14 @@ void main() {
           status: BreathingStatus.active,
           sessionDurationMinutes: 3,
           sessionRemainingSeconds: 180,
+          activeSessionId: 'test-session-id',
         ),
         BreathingState(
           status: BreathingStatus.active,
           sessionDurationMinutes: 3,
           sessionRemainingSeconds: 120,
           sessionElapsedMs: 60000,
+          activeSessionId: 'test-session-id',
         ),
       ],
     );
@@ -312,6 +314,7 @@ void main() {
           status: BreathingStatus.active,
           sessionDurationMinutes: 3,
           sessionRemainingSeconds: 180,
+          activeSessionId: 'test-session-id',
         ),
         BreathingState(
           status: BreathingStatus.completed,

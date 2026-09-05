@@ -23,6 +23,13 @@ class BreathingState extends Equatable {
   /// this flag itself, only react to it once.
   final bool justReconciled;
 
+  /// The real, client-minted id of the in-progress session (set for
+  /// active/paused, null otherwise) — the same id used for completion
+  /// dedup/analytics. Exposed so the background-audio layer's Now Playing
+  /// item identity actually matches the session it represents, instead of
+  /// a synthetic placeholder.
+  final String? activeSessionId;
+
   /// Why the current technique was picked this time (e.g. 'calm', 'sleep')
   /// — set by need-based entry points (moment picker, quick relief), null
   /// when a technique is chosen directly. Used for session analytics.
@@ -41,6 +48,7 @@ class BreathingState extends Equatable {
     this.sessionRemainingSeconds = 0,
     this.sessionElapsedMs = 0,
     this.justReconciled = false,
+    this.activeSessionId,
     this.selectedReason,
     this.postSessionStreakDays,
     this.postSessionAchievementTitle,
@@ -60,6 +68,8 @@ class BreathingState extends Equatable {
     // signal for the single emission after a reconcile, so every other
     // emit must explicitly reset it rather than inheriting `true` forever.
     bool justReconciled = false,
+    String? activeSessionId,
+    bool clearActiveSessionId = false,
     String? selectedReason,
     bool clearSelectedReason = false,
     int? postSessionStreakDays,
@@ -75,6 +85,9 @@ class BreathingState extends Equatable {
           sessionRemainingSeconds ?? this.sessionRemainingSeconds,
       sessionElapsedMs: sessionElapsedMs ?? this.sessionElapsedMs,
       justReconciled: justReconciled,
+      activeSessionId: clearActiveSessionId
+          ? null
+          : (activeSessionId ?? this.activeSessionId),
       selectedReason: clearSelectedReason
           ? null
           : (selectedReason ?? this.selectedReason),
@@ -95,6 +108,7 @@ class BreathingState extends Equatable {
     sessionRemainingSeconds,
     sessionElapsedMs,
     justReconciled,
+    activeSessionId,
     selectedReason,
     postSessionStreakDays,
     postSessionAchievementTitle,

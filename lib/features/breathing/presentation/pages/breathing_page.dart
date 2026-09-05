@@ -147,17 +147,16 @@ class _BreathingPageState extends State<BreathingPage>
 
   // Background/lock-screen audio presence — only when the user has sound
   // cues enabled (no silent keep-alive). See `BreathingAudioHandler` for why
-  // this is a continuous loop of the user's own ambience cue rather than a
-  // bare media-session flag.
+  // this only configures the audio session + Now Playing card rather than
+  // playing its own track.
   void _startAudioSession(BreathingState state) {
-    if (!context.read<SettingsBloc>().state.settings.isSoundEnabled) return;
     final settings = context.read<SettingsBloc>().state.settings;
+    if (!settings.isSoundEnabled) return;
     unawaited(
       di.sl<BreathingAudioHandler>().startSession(
-        sessionId: 'ease-session',
+        sessionId: state.activeSessionId ?? 'ease-session',
         techniqueName: state.technique.name,
         sessionDurationMinutes: state.sessionDurationMinutes,
-        ambienceCue: settings.soundCue,
         elapsed: Duration(milliseconds: state.sessionElapsedMs),
       ),
     );
@@ -295,6 +294,10 @@ class _BreathingPageState extends State<BreathingPage>
           // sound/haptic for whatever phase changes happened while away.
           _lastPhase = state.technique.pattern.phaseAt(t).phase;
           _breathingController.value = t;
+          // Re-publish Now Playing info unconditionally first — covers a
+          // cold start straight into a paused session, where no prior
+          // `startSession` call ever ran to set the MediaItem.
+          _startAudioSession(state);
           if (state.status == BreathingStatus.active) {
             _breathingController.forward(from: t).whenComplete(() {
               if (context.read<BreathingBloc>().state.status ==
@@ -302,7 +305,6 @@ class _BreathingPageState extends State<BreathingPage>
                 _breathingController.repeat();
               }
             });
-            _startAudioSession(state);
           } else {
             _pauseAudioSession(state);
           }
