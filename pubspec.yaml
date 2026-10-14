@@ -1,7 +1,7 @@
 name: box_breathe
-description: "A new Flutter project."
+description: "Ease — calm your mind instantly using guided breathing."
 publish_to: 'none'
-version: 2.0.1+6
+version: 2.1.0+7
 
 environment:
   sdk: ^3.10.4

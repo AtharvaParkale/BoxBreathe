@@ -10,6 +10,8 @@ abstract class UserProfileRemoteDataSource {
   /// touches `lastActiveAt`, preserving `createdAt` and `onboardingComplete`.
   Future<UserProfileModel> getOrCreateProfile(firebase_auth.User user);
 
+  /// Deletes `users/{uid}` and its `sessions` subcollection. Must run while
+  /// the user is still signed in — Firestore rules require `request.auth`.
   Future<void> deleteProfile(String uid);
 }
 
@@ -57,6 +59,15 @@ class UserProfileFirestoreDataSourceImpl implements UserProfileRemoteDataSource 
   @override
   Future<void> deleteProfile(String uid) async {
     try {
+      final sessions = await _doc(uid).collection('sessions').get();
+      // Firestore batches cap at 500 writes.
+      for (var i = 0; i < sessions.docs.length; i += 500) {
+        final batch = firestore.batch();
+        for (final doc in sessions.docs.skip(i).take(500)) {
+          batch.delete(doc.reference);
+        }
+        await batch.commit();
+      }
       await _doc(uid).delete();
     } catch (e) {
       throw ServerException(e.toString());

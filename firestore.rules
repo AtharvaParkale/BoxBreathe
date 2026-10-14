@@ -34,7 +34,8 @@ service cloud.firestore {
       allow delete: if isOwner(uid);
 
       // users/{uid}/sessions/{sessionId} — append-only completed-session
-      // history. No update/delete: sessions are a log, not editable state.
+      // history. No update: sessions are a log, not editable state. Delete is
+      // allowed only so account deletion can wipe the user's data.
       match /sessions/{sessionId} {
         allow read: if isOwner(uid);
 
@@ -56,7 +57,8 @@ service cloud.firestore {
           && request.resource.data.dateKeyLocal is string
           && request.resource.data.source in ['android', 'ios'];
 
-        allow update, delete: if false;
+        allow delete: if isOwner(uid);
+        allow update: if false;
       }
 
       // users/{uid}/preferences/settings — single doc, mirrors local Hive

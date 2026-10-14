@@ -154,11 +154,13 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, void>> deleteAccount() async {
     try {
+      // Firestore data first: once the Auth user is gone, security rules
+      // reject the deletes.
       final uid = authRemoteDataSource.currentUser?.uid;
-      await authRemoteDataSource.deleteAccount();
       if (uid != null) {
         await userProfileRemoteDataSource.deleteProfile(uid);
       }
+      await authRemoteDataSource.deleteAccount();
       return const Right(null);
     } on AuthException catch (e) {
       return Left(AuthFailure(e.message));
