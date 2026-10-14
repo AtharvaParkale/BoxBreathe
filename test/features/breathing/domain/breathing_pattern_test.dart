@@ -145,4 +145,47 @@ void main() {
       expect(result.scale, 0.6);
     });
   });
+
+  group('BreathingPattern.segmentAt', () {
+    final box = BreathingPattern.classic(
+      inhaleMs: 4000,
+      holdAfterInhaleMs: 4000,
+      exhaleMs: 4000,
+      holdAfterExhaleMs: 4000,
+    );
+
+    test('reports the active segment and linear progress through it', () {
+      final start = box.segmentAt(0);
+      expect(start.index, 0);
+      expect(start.progress, 0);
+
+      final midHold = box.segmentAt(6000 / 16000);
+      expect(midHold.index, 1);
+      expect(midHold.progress, closeTo(0.5, 1e-9));
+
+      final lateExhale = box.segmentAt(11000 / 16000);
+      expect(lateExhale.index, 2);
+      expect(lateExhale.progress, closeTo(0.75, 1e-9));
+    });
+
+    test('agrees with phaseAt on the active segment at every boundary', () {
+      for (var ms = 0; ms <= 16000; ms += 500) {
+        final t = ms / 16000;
+        final seg = box.segments[box.segmentAt(t).index];
+        expect(seg.kind, box.phaseAt(t).phase, reason: 't=$ms ms');
+      }
+    });
+
+    test('end of cycle stays in the last segment', () {
+      final end = box.segmentAt(1.0);
+      expect(end.index, 3);
+      expect(end.progress, 1.0);
+    });
+
+    test('empty pattern does not crash', () {
+      final r = const BreathingPattern([]).segmentAt(0.5);
+      expect(r.index, 0);
+      expect(r.progress, 0);
+    });
+  });
 }

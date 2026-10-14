@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/app_containers.dart';
-import '../../../../core/widgets/premium_controls.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/ease_button.dart';
+import '../../../../core/widgets/lists.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -50,104 +51,69 @@ class AccountSection extends StatelessWidget {
         : 'debug: status=${state.status.name} uid=${user.uid} '
               'provider=${user.provider.name}${state.errorMessage != null ? ' error=${state.errorMessage}' : ''}';
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xs, left: AppSpacing.sm2),
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
       child: Text(
         text,
-        style: theme.textTheme.bodySmall?.copyWith(
-          fontFamily: 'monospace',
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
-        ),
+        style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
       ),
     );
   }
 
   Widget _buildLoading(BuildContext context) {
-    return AppGroupContainer(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.md,
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(
-                    Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm2),
-              Text(
-                'Loading account…',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-          ),
+    return Semantics(
+      label: 'Loading account',
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        child: Text(
+          'Checking your account…',
+          style: Theme.of(context).textTheme.bodyMedium,
         ),
-      ],
+      ),
     );
   }
 
   Widget _buildAnonymous(BuildContext context, AuthState state) {
-    final theme = Theme.of(context);
-    return AppGroupContainer(
+    final theme = Theme.of(context).textTheme;
+    final hasError =
+        state.status == AuthStatus.error && state.errorMessage != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Save your progress', style: theme.textTheme.titleMedium),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                state.status == AuthStatus.error && state.errorMessage != null
-                    ? state.errorMessage!
-                    : 'Keep your breathing history across devices',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: state.status == AuthStatus.error
-                      ? theme.colorScheme.error
-                      : null,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              PremiumScaleButton(
-                onTap: () =>
-                    context.read<AuthBloc>().add(GoogleSignInRequested()),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm2),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    'Continue with Google',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              if (kDebugMode) ...[
-                const SizedBox(height: AppSpacing.md),
-                const _EmailPasswordDebugForm(),
-              ],
-            ],
-          ),
+        Text('Keep your practice', style: theme.titleMedium),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Sign in to keep your history and streak across devices. '
+          'Everything works without an account.',
+          style: theme.bodyMedium,
         ),
+        if (hasError) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Semantics(
+            liveRegion: true,
+            child: Container(
+              padding: const EdgeInsets.only(left: AppSpacing.md),
+              decoration: const BoxDecoration(
+                border: Border(left: BorderSide(color: AppColors.white)),
+              ),
+              child: Text(state.errorMessage!, style: theme.bodyLarge),
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        EaseButton.primary(
+          label: 'Continue with Google',
+          onTap: () => context.read<AuthBloc>().add(GoogleSignInRequested()),
+        ),
+        if (kDebugMode) ...[
+          const SizedBox(height: AppSpacing.lg),
+          const _EmailPasswordDebugForm(),
+        ],
       ],
     );
   }
 
   Widget _buildSignedIn(BuildContext context, AuthState state) {
-    final theme = Theme.of(context);
+    final theme = Theme.of(context).textTheme;
     final user = state.user!;
     final initial = (user.displayName?.isNotEmpty ?? false)
         ? user.displayName![0].toUpperCase()
@@ -155,70 +121,70 @@ class AccountSection extends StatelessWidget {
         ? user.email![0].toUpperCase()
         : '?';
 
-    return AppGroupContainer(
+    return HairlineList(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm2,
-          ),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: theme.colorScheme.onSurface.withValues(
-                  alpha: 0.08,
+              ExcludeSemantics(
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  clipBehavior: Clip.antiAlias,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.hairline),
+                  ),
+                  child: user.photoUrl != null
+                      ? ColorFiltered(
+                          // Keep the avatar inside the monochrome palette.
+                          colorFilter: const ColorFilter.matrix([
+                            0.2126, 0.7152, 0.0722, 0, 0, //
+                            0.2126, 0.7152, 0.0722, 0, 0, //
+                            0.2126, 0.7152, 0.0722, 0, 0, //
+                            0, 0, 0, 1, 0,
+                          ]),
+                          child: Image.network(
+                            user.photoUrl!,
+                            width: 44,
+                            height: 44,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) =>
+                                Text(initial, style: theme.headlineSmall),
+                          ),
+                        )
+                      : Text(initial, style: theme.headlineSmall),
                 ),
-                backgroundImage: user.photoUrl != null
-                    ? NetworkImage(user.photoUrl!)
-                    : null,
-                child: user.photoUrl == null
-                    ? Text(initial, style: theme.textTheme.titleMedium)
-                    : null,
               ),
-              const SizedBox(width: AppSpacing.sm2),
+              const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       user.displayName ?? user.email ?? 'Signed in',
-                      style: theme.textTheme.titleMedium,
+                      style: theme.bodyLarge,
                     ),
-                    if (user.email != null)
-                      Text(user.email!, style: theme.textTheme.bodyMedium),
-                    Text(
-                      'Synced across devices',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
+                    if (user.email != null && user.displayName != null)
+                      Text(user.email!, style: theme.bodyMedium),
+                    Text('Synced across devices', style: theme.bodySmall),
                   ],
                 ),
               ),
             ],
           ),
         ),
-        const AppDivider(),
-        ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.xs,
-          ),
-          title: const Text('Sign out'),
+        ListRow(
+          title: 'Sign out',
+          showChevron: false,
           onTap: () => _confirmSignOut(context),
         ),
-        const AppDivider(),
-        ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.xs,
-          ),
-          title: Text(
-            'Delete account',
-            style: TextStyle(color: theme.colorScheme.error),
-          ),
+        ListRow(
+          title: 'Delete account',
+          titleStyle: theme.bodyLarge?.copyWith(color: AppColors.secondary),
+          showChevron: false,
           onTap: () => _confirmDeleteAccount(context),
         ),
       ],
@@ -252,14 +218,14 @@ class AccountSection extends StatelessWidget {
   }
 
   Future<void> _confirmDeleteAccount(BuildContext context) async {
-    final theme = Theme.of(context);
     final bloc = context.read<AuthBloc>();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Delete account?'),
         content: const Text(
-          'This permanently deletes your account. This cannot be undone.',
+          'Your account and synced history will be permanently deleted. '
+          'This cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -268,9 +234,9 @@ class AccountSection extends StatelessWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(
-              'Delete',
-              style: TextStyle(color: theme.colorScheme.error),
+            child: const Text(
+              'Delete permanently',
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -323,9 +289,7 @@ class _EmailPasswordDebugFormState extends State<_EmailPasswordDebugForm> {
       children: [
         Text(
           'DEBUG: email/password (removed before release)',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-          ),
+          style: theme.textTheme.labelSmall,
         ),
         const SizedBox(height: AppSpacing.xs),
         TextField(

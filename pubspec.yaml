@@ -18,7 +18,6 @@ dependencies:
   audio_session: ^0.2.4
   flutter_local_notifications: ^20.0.0
   get_it: ^9.2.0
-  google_fonts: ^8.0.1
   dartz: ^0.10.1
   timezone: ^0.10.0
   wakelock_plus: ^1.2.10
@@ -50,6 +49,30 @@ flutter:
   assets:
     - assets/audio/
     - assets/icon/
+    - assets/fonts/OFL-Inter.txt
+    - assets/fonts/OFL-Newsreader.txt
+
+  # Bundled (not runtime-fetched) so typography is identical offline and on
+  # first launch. Both families are SIL OFL 1.1 — licences registered in
+  # main.dart via LicenseRegistry.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+    - family: Newsreader
+      fonts:
+        - asset: assets/fonts/Newsreader-Light.ttf
+          weight: 300
+        - asset: assets/fonts/Newsreader-Regular.ttf
+        - asset: assets/fonts/Newsreader-LightItalic.ttf
+          weight: 300
+          style: italic
+        - asset: assets/fonts/Newsreader-Italic.ttf
+          style: italic
 
   # assets:
   #   - images/a_dot_burr.jpeg

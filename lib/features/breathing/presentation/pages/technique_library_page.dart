@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/app_containers.dart';
-import '../../../../core/widgets/premium_controls.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/ease_page.dart';
+import '../../../../core/widgets/ease_sheet.dart';
+import '../../../../core/widgets/lists.dart';
+import '../../../../core/widgets/text_segmented.dart';
 import '../../../../injection_container.dart' as di;
 import '../../../progress/domain/entities/progress_session_record.dart';
 import '../../../progress/domain/usecases/get_recent_sessions.dart';
@@ -15,6 +18,20 @@ import '../bloc/breathing_event.dart';
 import '../widgets/technique_row.dart';
 import 'technique_detail_page.dart';
 
+/// Short labels for the need filter — the full [TechniqueCategoryLabel]
+/// phrasing is used in the "Not sure?" sheet where there's room.
+extension on TechniqueCategory {
+  String get filterLabel => switch (this) {
+    TechniqueCategory.calm => 'Calm',
+    TechniqueCategory.focus => 'Focus',
+    TechniqueCategory.sleep => 'Sleep',
+    TechniqueCategory.energize => 'Awake',
+    TechniqueCategory.overwhelmed => 'Overwhelmed',
+  };
+}
+
+/// Pops with `true` when the user chose to begin a session (directly or
+/// via a detail page), so the home screen can start immediately.
 class TechniqueLibraryPage extends StatefulWidget {
   const TechniqueLibraryPage({super.key});
 
@@ -23,14 +40,18 @@ class TechniqueLibraryPage extends StatefulWidget {
 }
 
 class _TechniqueLibraryPageState extends State<TechniqueLibraryPage> {
-  TechniqueCategory? _expandedCategory;
+  /// `null` = all techniques.
+  TechniqueCategory? _filter;
+
   late final Future<List<ProgressSessionRecord>> _recentSessionsFuture = di
       .sl<GetRecentSessions>()(limit: 10)
-      .then((result) => result.fold((_) => const <ProgressSessionRecord>[], (s) => s));
+      .then(
+        (result) =>
+            result.fold((_) => const <ProgressSessionRecord>[], (s) => s),
+      );
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final hapticsEnabled = context.select(
       (SettingsBloc bloc) => bloc.state.settings.isHapticEnabled,
     );
@@ -41,110 +62,118 @@ class _TechniqueLibraryPageState extends State<TechniqueLibraryPage> {
         .where(BreathingTechniqueCatalog.exists)
         .map(BreathingTechniqueCatalog.byId)
         .toList();
+    final listed = _filter == null
+        ? BreathingTechniqueCatalog.visible
+        : BreathingTechniqueCatalog.byCategory(_filter!);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Techniques'),
-        backgroundColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        children: [
-          _QuickReliefCard(
-            hapticsEnabled: hapticsEnabled,
-            onPicked: _startFromCategory,
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-
-          const AppSectionHeader(title: 'WHAT DO YOU NEED RIGHT NOW?'),
-          const SizedBox(height: AppSpacing.sm2),
-          _CategoryChipsRow(
-            selected: _expandedCategory,
-            hapticsEnabled: hapticsEnabled,
-            onSelect: (category) => setState(() {
-              _expandedCategory = _expandedCategory == category
-                  ? null
-                  : category;
-            }),
-          ),
-          if (_expandedCategory != null) ...[
-            const SizedBox(height: AppSpacing.sm2),
-            AppGroupContainer(
-              children: _rowsFor(
-                BreathingTechniqueCatalog.featuredByCategory(
-                  _expandedCategory!,
-                ),
-                hapticsEnabled,
-                reason: _expandedCategory!.name,
+    return EasePage(
+      title: 'Techniques',
+      slivers: [
+        GutterSliver(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Divider(),
+              ListRow(
+                title: 'Not sure what you need?',
+                subtitle: "Say how you feel and we'll start the right one.",
+                hapticsEnabled: hapticsEnabled,
+                onTap: () => _showFeelingPicker(hapticsEnabled),
               ),
+              const Divider(),
+            ],
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.lg),
+            child: TextSegmented<TechniqueCategory?>(
+              scrollable: true,
+              hapticsEnabled: hapticsEnabled,
+              selected: _filter,
+              onSelect: (c) => setState(() => _filter = c),
+              options: [
+                (null, 'All'),
+                for (final c in TechniqueCategory.values) (c, c.filterLabel),
+              ],
             ),
-          ],
-          const SizedBox(height: AppSpacing.xxl),
-
-          if (favorites.isNotEmpty) ...[
-            const AppSectionHeader(title: 'FAVORITES'),
-            const SizedBox(height: AppSpacing.sm2),
-            AppGroupContainer(children: _rowsFor(favorites, hapticsEnabled)),
-            const SizedBox(height: AppSpacing.xxl),
-          ],
-
-          FutureBuilder<List<ProgressSessionRecord>>(
-            future: _recentSessionsFuture,
-            builder: (context, snapshot) {
-              final recent = snapshot.data ?? const [];
-              final seen = <String>{};
-              final distinct = <ProgressSessionRecord>[];
-              for (final r in recent) {
-                if (seen.add(r.techniqueId)) distinct.add(r);
-                if (distinct.length == 2) break;
-              }
-              if (distinct.isEmpty) return const SizedBox.shrink();
-              return Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+        ),
+        if (_filter == null && favorites.isNotEmpty)
+          GutterSliver(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SectionLabel('Favorites'),
+                HairlineList(children: _rowsFor(favorites, hapticsEnabled)),
+              ],
+            ),
+          ),
+        if (_filter == null)
+          GutterSliver(
+            child: FutureBuilder<List<ProgressSessionRecord>>(
+              future: _recentSessionsFuture,
+              builder: (context, snapshot) {
+                final recent = _distinctRecent(snapshot.data ?? const []);
+                if (recent.isEmpty) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const AppSectionHeader(
-                      title: 'CONTINUE WHERE YOU LEFT OFF',
-                    ),
-                    const SizedBox(height: AppSpacing.sm2),
-                    for (final record in distinct)
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: AppSpacing.sm2,
-                          bottom: 4,
-                        ),
-                        child: Text(
-                          '${_displayNameFor(record)} · '
-                          '${record.completedDurationSeconds ~/ 60} min',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.55,
-                            ),
+                    const SectionLabel('Recently'),
+                    HairlineList(
+                      children: [
+                        for (final record in recent)
+                          ListRow(
+                            title: _displayNameFor(record),
+                            value: formatRelativeDay(record.completedAt),
+                            hapticsEnabled: hapticsEnabled,
+                            onTap:
+                                BreathingTechniqueCatalog.exists(
+                                  record.techniqueId,
+                                )
+                                ? () => _openDetail(
+                                    BreathingTechniqueCatalog.byId(
+                                      record.techniqueId,
+                                    ),
+                                  )
+                                : null,
                           ),
-                        ),
-                      ),
+                      ],
+                    ),
                   ],
-                ),
-              );
-            },
-          ),
-
-          const AppSectionHeader(title: 'BROWSE ALL'),
-          const SizedBox(height: AppSpacing.sm2),
-          AppGroupContainer(
-            children: _rowsFor(
-              BreathingTechniqueCatalog.visible,
-              hapticsEnabled,
+                );
+              },
             ),
           ),
-        ],
-      ),
+        GutterSliver(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SectionLabel(_filter == null ? 'All techniques' : _filter!.label),
+              HairlineList(
+                children: _rowsFor(
+                  listed,
+                  hapticsEnabled,
+                  reason: _filter?.name,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
+  }
+
+  List<ProgressSessionRecord> _distinctRecent(
+    List<ProgressSessionRecord> records,
+  ) {
+    final seen = <String>{};
+    final distinct = <ProgressSessionRecord>[];
+    for (final r in records) {
+      if (seen.add(r.techniqueId)) distinct.add(r);
+      if (distinct.length == 3) break;
+    }
+    return distinct;
   }
 
   String _displayNameFor(ProgressSessionRecord record) {
@@ -158,25 +187,48 @@ class _TechniqueLibraryPageState extends State<TechniqueLibraryPage> {
     bool hapticsEnabled, {
     String? reason,
   }) {
-    final rows = <Widget>[];
-    for (var i = 0; i < techniques.length; i++) {
-      if (i > 0) rows.add(const AppDivider());
-      final technique = techniques[i];
-      rows.add(
+    return [
+      for (final technique in techniques)
         TechniqueRow(
           technique: technique,
           hapticsEnabled: hapticsEnabled,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  TechniqueDetailPage(technique: technique, reason: reason),
-            ),
-          ),
+          onTap: () => _openDetail(technique, reason: reason),
         ),
-      );
-    }
-    return rows;
+    ];
+  }
+
+  Future<void> _openDetail(
+    BreathingTechnique technique, {
+    String? reason,
+  }) async {
+    final start = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            TechniqueDetailPage(technique: technique, reason: reason),
+      ),
+    );
+    if (start == true && mounted) Navigator.pop(context, true);
+  }
+
+  void _showFeelingPicker(bool hapticsEnabled) {
+    showEaseSheet<void>(
+      context: context,
+      title: 'How are you feeling?',
+      builder: (sheetContext) => HairlineList(
+        children: [
+          for (final category in TechniqueCategory.values)
+            ListRow(
+              title: category.label,
+              hapticsEnabled: hapticsEnabled,
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _startFromCategory(category);
+              },
+            ),
+        ],
+      ),
+    );
   }
 
   void _startFromCategory(TechniqueCategory category) {
@@ -189,167 +241,6 @@ class _TechniqueLibraryPageState extends State<TechniqueLibraryPage> {
     context.read<BreathingBloc>().add(
       ChangeSessionDuration(technique.recommendedDuration),
     );
-    Navigator.popUntil(context, (route) => route.isFirst);
-  }
-}
-
-class _QuickReliefCard extends StatelessWidget {
-  final bool hapticsEnabled;
-  final ValueChanged<TechniqueCategory> onPicked;
-
-  const _QuickReliefCard({required this.hapticsEnabled, required this.onPicked});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Semantics(
-      button: true,
-      label: 'Quick relief — not sure what you need',
-      child: PremiumScaleButton(
-        hapticsEnabled: hapticsEnabled,
-        onTap: () => _showPicker(context),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.bolt_rounded, color: theme.colorScheme.onPrimary),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Not sure what you need?',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: theme.colorScheme.onPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      "Tell us how you feel — we'll pick something",
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onPrimary.withValues(
-                          alpha: 0.7,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_rounded,
-                color: theme.colorScheme.onPrimary,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showPicker(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (sheetContext) => Container(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    sheetContext,
-                  ).colorScheme.onSurface.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'How are you feeling?',
-              style: Theme.of(sheetContext).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 24),
-            for (final category in TechniqueCategory.values)
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
-                leading: Text(
-                  category.emoji,
-                  style: const TextStyle(fontSize: 20),
-                ),
-                title: Text(category.label),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  onPicked(category);
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CategoryChipsRow extends StatelessWidget {
-  final TechniqueCategory? selected;
-  final bool hapticsEnabled;
-  final ValueChanged<TechniqueCategory> onSelect;
-
-  const _CategoryChipsRow({
-    required this.selected,
-    required this.hapticsEnabled,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: TechniqueCategory.values.map((category) {
-        final isSelected = category == selected;
-        return PremiumScaleButton(
-          hapticsEnabled: hapticsEnabled,
-          onTap: () => onSelect(category),
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 10,
-            ),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isSelected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.14),
-              ),
-            ),
-            child: Text(
-              '${category.emoji}  ${category.label}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: isSelected
-                    ? theme.colorScheme.onPrimary
-                    : theme.colorScheme.onSurface,
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
+    Navigator.pop(context, true);
   }
 }

@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/firebase/firebase_initializer.dart';
 import 'core/theme/app_theme.dart';
@@ -16,10 +18,26 @@ import 'features/settings/presentation/bloc/settings_event_state.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _registerFontLicenses();
   await initializeFirebase();
   await di.init();
   final showOnboarding = !di.sl<OnboardingStorage>().hasSeenOnboarding();
   runApp(BoxBreatheApp(showOnboarding: showOnboarding));
+}
+
+/// Inter and Newsreader are bundled under the SIL Open Font License, which
+/// requires the licence to travel with the fonts.
+void _registerFontLicenses() {
+  LicenseRegistry.addLicense(() async* {
+    for (final (family, path) in const [
+      ('Inter', 'assets/fonts/OFL-Inter.txt'),
+      ('Newsreader', 'assets/fonts/OFL-Newsreader.txt'),
+    ]) {
+      yield LicenseEntryWithLineBreaks([
+        family,
+      ], await rootBundle.loadString(path));
+    }
+  });
 }
 
 class BoxBreatheApp extends StatelessWidget {

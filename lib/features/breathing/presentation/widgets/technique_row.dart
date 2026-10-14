@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/premium_controls.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/pressable.dart';
 import '../../../settings/presentation/bloc/settings_bloc.dart';
 import '../../../settings/presentation/bloc/settings_event_state.dart';
+import '../../domain/entities/breathing_pattern.dart';
 import '../../domain/entities/breathing_technique.dart';
 
-/// Shared row used across Favorites/Browse-all/category sections on the
-/// technique library page.
+/// "4 · 7 · 8" — a technique's rhythm at a glance.
+String patternSignature(BreathingPattern pattern) =>
+    pattern.segments.map((s) => formatPhaseSeconds(s.durationMs)).join(' · ');
+
+/// One technique in a list: name with its rhythm, a one-line description,
+/// and a favorite toggle.
 class TechniqueRow extends StatelessWidget {
   final BreathingTechnique technique;
   final VoidCallback onTap;
@@ -25,48 +32,66 @@ class TechniqueRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isFavorite = showFavoriteToggle
-        ? context.select(
-            (SettingsBloc bloc) => bloc.state.settings.favoriteTechniqueIds
-                .contains(technique.id),
-          )
-        : false;
+    final theme = Theme.of(context).textTheme;
+    final isFavorite =
+        showFavoriteToggle &&
+        context.select(
+          (SettingsBloc bloc) =>
+              bloc.state.settings.favoriteTechniqueIds.contains(technique.id),
+        );
 
-    return ListTile(
+    return Pressable(
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.xs,
-      ),
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
-        ),
-        child: Icon(
-          technique.icon,
-          size: 18,
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-        ),
-      ),
-      title: Text(technique.name),
-      subtitle: Text(
-        technique.shortDescription,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: !showFavoriteToggle
-          ? null
-          : Semantics(
-              button: true,
-              label: isFavorite
-                  ? 'Remove from favorites'
-                  : 'Add to favorites',
-              child: PremiumScaleButton(
+      hapticsEnabled: hapticsEnabled,
+      pressedScale: 1.0,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: AppSpacing.md,
+                    crossAxisAlignment: WrapCrossAlignment.end,
+                    children: [
+                      Text(technique.name, style: theme.titleMedium),
+                      Semantics(
+                        label: 'Rhythm ${patternSignature(technique.pattern)}',
+                        child: ExcludeSemantics(
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: Text(
+                              patternSignature(technique.pattern),
+                              style: theme.bodySmall?.copyWith(
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    technique.shortDescription,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+            if (showFavoriteToggle)
+              Pressable(
                 hapticsEnabled: hapticsEnabled,
+                selected: isFavorite,
+                semanticLabel: isFavorite
+                    ? 'Remove ${technique.name} from favorites'
+                    : 'Add ${technique.name} to favorites',
                 onTap: () => context.read<SettingsBloc>().add(
                   ToggleFavoriteTechnique(technique.id),
                 ),
@@ -75,12 +100,12 @@ class TechniqueRow extends StatelessWidget {
                       ? Icons.favorite_rounded
                       : Icons.favorite_border_rounded,
                   size: 20,
-                  color: isFavorite
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                  color: isFavorite ? AppColors.white : AppColors.disabled,
                 ),
               ),
-            ),
+          ],
+        ),
+      ),
     );
   }
 }

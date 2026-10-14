@@ -21,21 +21,6 @@ extension TechniqueCategoryLabel on TechniqueCategory {
         return 'Feeling overwhelmed';
     }
   }
-
-  String get emoji {
-    switch (this) {
-      case TechniqueCategory.calm:
-        return '😌';
-      case TechniqueCategory.focus:
-        return '🧠';
-      case TechniqueCategory.sleep:
-        return '😴';
-      case TechniqueCategory.energize:
-        return '⚡';
-      case TechniqueCategory.overwhelmed:
-        return '❤️';
-    }
-  }
 }
 
 /// Deliberately framed as feel, not skill — a user should never feel like

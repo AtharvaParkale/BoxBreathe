@@ -90,6 +90,29 @@ class BreathingPattern extends Equatable {
     return (phase: last.kind, scale: last.scaleEnd, label: last.label);
   }
 
+  /// Which segment is active at [t] (fraction of one cycle) and how far
+  /// through it we are, linearly, in `[0.0, 1.0]`. Uses the same boundary
+  /// rule as [phaseAt], so the two always agree on the active segment.
+  ({int index, double progress}) segmentAt(double t) {
+    final total = cycleDurationMs;
+    if (segments.isEmpty || total == 0) return (index: 0, progress: 0.0);
+
+    final tMs = t * total;
+    double cursor = 0;
+    for (var i = 0; i < segments.length; i++) {
+      final segment = segments[i];
+      final segEnd = cursor + segment.durationMs;
+      if (tMs <= segEnd || i == segments.length - 1) {
+        final progress = segment.durationMs == 0
+            ? 1.0
+            : ((tMs - cursor) / segment.durationMs).clamp(0.0, 1.0);
+        return (index: i, progress: progress);
+      }
+      cursor = segEnd;
+    }
+    return (index: segments.length - 1, progress: 1.0);
+  }
+
   /// Builds the familiar inhale -> hold -> exhale -> hold shape as a
   /// segment list. A zero-duration hold is omitted rather than kept as a
   /// no-op segment, so e.g. Coherence (no holds) naturally becomes a

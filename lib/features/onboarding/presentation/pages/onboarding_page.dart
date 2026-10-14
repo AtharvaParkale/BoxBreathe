@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_motion.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/premium_controls.dart';
+import '../../../../core/widgets/ease_button.dart';
 import '../../../../injection_container.dart' as di;
+import '../../../breathing/domain/entities/breathing_pattern.dart';
 import '../../../breathing/presentation/pages/breathing_page.dart';
+import '../../../breathing/presentation/widgets/breathing_orb.dart';
 import '../../onboarding_storage.dart';
 
 class _OnboardingSlide {
@@ -16,15 +20,22 @@ class _OnboardingSlide {
 const _slides = [
   _OnboardingSlide(
     title: 'Ease',
-    body: 'Calm your mind instantly using guided breathing.',
+    body: 'A few slow breaths, guided. Calmer in minutes.',
   ),
   _OnboardingSlide(
-    title: 'Just breathe.',
+    title: 'Follow the circle.',
     body:
-        "When your mind feels loud, one guided session is often all it "
-        "takes to feel steadier.",
+        "Breathe in as it grows, out as it softens. That's all there is to it.",
   ),
 ];
+
+/// A slow, even demo rhythm for the onboarding orb (4s in, 4s out).
+final _demoPattern = BreathingPattern.classic(
+  inhaleMs: 4000,
+  holdAfterInhaleMs: 0,
+  exhaleMs: 4000,
+  holdAfterExhaleMs: 0,
+);
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -33,13 +44,32 @@ class OnboardingPage extends StatefulWidget {
   State<OnboardingPage> createState() => _OnboardingPageState();
 }
 
-class _OnboardingPageState extends State<OnboardingPage> {
-  final _controller = PageController();
+class _OnboardingPageState extends State<OnboardingPage>
+    with SingleTickerProviderStateMixin {
+  final _pageController = PageController();
+  late final AnimationController _demo = AnimationController(
+    vsync: this,
+    duration: Duration(milliseconds: _demoPattern.cycleDurationMs),
+  );
   int _index = 0;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reduced motion: show the orb at mid-breath, still.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _demo
+        ..stop()
+        ..value = 0.25;
+    } else if (!_demo.isAnimating) {
+      _demo.repeat();
+    }
+  }
+
+  @override
   void dispose() {
-    _controller.dispose();
+    _pageController.dispose();
+    _demo.dispose();
     super.dispose();
   }
 
@@ -52,9 +82,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   void _next() {
     if (_index < _slides.length - 1) {
-      _controller.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+      _pageController.nextPage(
+        duration: AppMotion.of(context, AppMotion.calm),
+        curve: AppMotion.standard,
       );
     } else {
       _finish();
@@ -63,132 +93,109 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final theme = Theme.of(context).textTheme;
     final isLast = _index == _slides.length - 1;
 
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
-            Align(
-              alignment: Alignment.topRight,
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: TextButton(
-                  onPressed: _finish,
-                  child: Text(
-                    'Skip',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withValues(
-                        alpha: 0.5,
-                      ),
+            SizedBox(
+              height: 56,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.sm),
+                  child: AnimatedOpacity(
+                    opacity: isLast ? 0 : 1,
+                    duration: AppMotion.of(context, AppMotion.base),
+                    child: IgnorePointer(
+                      ignoring: isLast,
+                      child: EaseButton.quiet(label: 'Skip', onTap: _finish),
                     ),
                   ),
                 ),
               ),
             ),
             Expanded(
-              child: PageView(
-                controller: _controller,
-                onPageChanged: (i) => setState(() => _index = i),
-                children: _slides
-                    .map((slide) => _SlideView(slide: slide))
-                    .toList(),
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_slides.length, (i) {
-                final active = i == _index;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  width: active ? 20 : 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.onSurface.withValues(
-                      alpha: active ? 0.9 : 0.2,
-                    ),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                );
-              }),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: SizedBox(
-                width: double.infinity,
-                child: Semantics(
-                  button: true,
-                  label: isLast ? 'Get started' : 'Next',
-                  child: PremiumScaleButton(
-                    onTap: _next,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.md,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        isLast ? 'Get Started' : 'Next',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: theme.colorScheme.onPrimary,
-                        ),
-                      ),
+              child: LayoutBuilder(
+                builder: (context, c) => Center(
+                  child: ExcludeSemantics(
+                    child: BreathingOrb(
+                      cycle: _demo,
+                      pattern: _demoPattern,
+                      mode: OrbMode.follow,
+                      size: (c.biggest.shortestSide - 32).clamp(140.0, 280.0),
                     ),
                   ),
                 ),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SlideView extends StatelessWidget {
-  final _OnboardingSlide slide;
-
-  const _SlideView({required this.slide});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 96,
-            height: 96,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: theme.colorScheme.primary.withValues(alpha: 0.08),
-              border: Border.all(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+            SizedBox(
+              height: MediaQuery.textScalerOf(context).scale(168),
+              child: PageView(
+                controller: _pageController,
+                onPageChanged: (i) => setState(() => _index = i),
+                children: [
+                  for (final slide in _slides)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.gutter,
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            slide.title,
+                            textAlign: TextAlign.center,
+                            style: theme.displayLarge,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            slide.body,
+                            textAlign: TextAlign.center,
+                            style: theme.bodyLarge?.copyWith(
+                              color: AppColors.secondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-          Text(
-            slide.title,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.displayMedium,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            slide.body,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            Semantics(
+              label: 'Page ${_index + 1} of ${_slides.length}',
+              child: ExcludeSemantics(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(_slides.length, (i) {
+                    return AnimatedContainer(
+                      duration: AppMotion.of(context, AppMotion.base),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                      ),
+                      width: 24,
+                      height: 1,
+                      color: i == _index ? AppColors.white : AppColors.disabled,
+                    );
+                  }),
+                ),
+              ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.gutter,
+                AppSpacing.xl,
+                AppSpacing.gutter,
+                AppSpacing.lg,
+              ),
+              child: EaseButton.primary(
+                label: isLast ? 'Begin' : 'Continue',
+                onTap: _next,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

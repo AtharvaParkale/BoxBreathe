@@ -4,20 +4,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
-import '../../../../core/widgets/premium_controls.dart';
-import '../widgets/moment_picker.dart';
+
+import '../../../../core/services/breathing_audio_handler.dart';
+import '../../../../core/services/sound_service.dart';
+import '../../../../core/theme/app_motion.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/ease_sheet.dart';
+import '../../../../core/widgets/lists.dart';
+import '../../../../features/progress/presentation/pages/progress_page.dart';
+import '../../../../features/settings/presentation/bloc/settings_bloc.dart';
+import '../../../../features/settings/presentation/pages/settings_page.dart';
+import '../../../../injection_container.dart' as di;
+import '../../domain/entities/breathing_pattern.dart';
 import '../bloc/breathing_bloc.dart';
 import '../bloc/breathing_event.dart';
 import '../bloc/breathing_state.dart';
-import '../../domain/entities/breathing_pattern.dart';
+import '../widgets/breathing_orb.dart';
+import '../widgets/completion_view.dart';
+import '../widgets/home_view.dart';
+import '../widgets/moment_picker.dart';
+import '../widgets/session_view.dart';
 import 'technique_library_page.dart';
-import '../../../../features/settings/presentation/bloc/settings_bloc.dart';
-import '../../../../features/settings/presentation/pages/settings_page.dart';
-import '../../../../features/progress/presentation/pages/progress_page.dart';
-import '../../../../injection_container.dart' as di;
-import '../../../../core/services/sound_service.dart';
-import '../../../../core/services/breathing_audio_handler.dart';
 
+/// Root screen. Owns the session lifecycle (animation clock, countdown,
+/// audio/haptic cues, wakelock, background reconcile) and renders one of
+/// three stage views — home, session (countdown/active/paused), completion
+/// — around a single persistent [BreathingOrb].
 class BreathingPage extends StatefulWidget {
   const BreathingPage({super.key});
 
@@ -28,18 +40,24 @@ class BreathingPage extends StatefulWidget {
 class _BreathingPageState extends State<BreathingPage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _breathingController;
-  late AnimationController _glowController;
-  late Animation<double> _glowAnimation;
 
   // Countdown State
   bool _isCountingDown = false;
   int _countdownValue = 3;
 
+  /// Bumped on every countdown start/cancel; a running countdown loop bails
+  /// out as soon as it sees a token other than its own, so a cancelled
+  /// countdown can never dispatch `StartBreathing`.
+  int _countdownToken = 0;
+
   // Haptic State Tracking
   BreathingPhaseKind? _lastPhase;
 
-  // Timer that returns the UI to "ready" a moment after a session completes
-  Timer? _completionTimer;
+  /// Active segment index + whole seconds left in it, published only when
+  /// they change so the phase text rebuilds a few times per breath rather
+  /// than every animation frame.
+  final _phaseIndex = ValueNotifier<int>(0);
+  final _phaseSecondsLeft = ValueNotifier<int>(0);
 
   // Audio interruptions (calls, Bluetooth/headphone route changes) reported
   // by the background audio handler — treated exactly like a manual pause.
@@ -59,36 +77,11 @@ class _BreathingPageState extends State<BreathingPage>
             _pauseSession();
           }
         });
-    // Breathing Controller
     _breathingController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 16),
-    ); // Default 16s
-
+    );
     _breathingController.addListener(_onBreathingTick);
-
-    // Glow Controller (Ambient)
-    _glowController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 6), // Slower, more calming glow
-    );
-
-    _glowAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _glowController, curve: Curves.easeInOutQuad),
-    );
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Respect the OS-level reduced-motion setting: hold the ambient glow
-    // steady instead of endlessly pulsing it.
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _glowController.stop();
-      _glowController.value = 0.0;
-    } else if (!_glowController.isAnimating) {
-      _glowController.repeat(reverse: true);
-    }
   }
 
   @override
@@ -96,8 +89,8 @@ class _BreathingPageState extends State<BreathingPage>
     WidgetsBinding.instance.removeObserver(this);
     _breathingController.removeListener(_onBreathingTick);
     _breathingController.dispose();
-    _glowController.dispose();
-    _completionTimer?.cancel();
+    _phaseIndex.dispose();
+    _phaseSecondsLeft.dispose();
     _audioInterruptionSubscription?.cancel();
     WakelockPlus.disable();
     super.dispose();
@@ -123,9 +116,18 @@ class _BreathingPageState extends State<BreathingPage>
 
   void _onBreathingTick() {
     final state = context.read<BreathingBloc>().state;
-    final phaseInfo = state.technique.pattern.phaseAt(
-      _breathingController.value,
-    );
+    final pattern = state.technique.pattern;
+    final t = _breathingController.value;
+    final phaseInfo = pattern.phaseAt(t);
+
+    final segment = pattern.segmentAt(t);
+    _phaseIndex.value = segment.index;
+    if (pattern.segments.isNotEmpty) {
+      final segMs = pattern.segments[segment.index].durationMs;
+      _phaseSecondsLeft.value = ((1 - segment.progress) * segMs / 1000)
+          .ceil()
+          .clamp(1, 99);
+    }
 
     // Haptics & Sound Trigger
     if (phaseInfo.phase != _lastPhase) {
@@ -186,7 +188,7 @@ class _BreathingPageState extends State<BreathingPage>
 
   void _triggerPhaseHaptic() {
     // Double Pulse Haptic
-    HapticFeedback.lightImpact(); // Softened for premium feel
+    HapticFeedback.lightImpact();
     Future.delayed(const Duration(milliseconds: 150), () {
       if (mounted) HapticFeedback.lightImpact();
     });
@@ -201,20 +203,24 @@ class _BreathingPageState extends State<BreathingPage>
   }
 
   void _startSession() {
-    _completionTimer?.cancel();
-    // Check if we need countdown
+    if (_isCountingDown) return;
     setState(() {
       _isCountingDown = true;
       _countdownValue = 3;
     });
 
-    _runCountdown();
+    _runCountdown(++_countdownToken);
   }
 
-  void _runCountdown() async {
+  void _cancelCountdown() {
+    _countdownToken++;
+    setState(() => _isCountingDown = false);
+  }
+
+  void _runCountdown(int token) async {
     final settings = context.read<SettingsBloc>().state.settings;
     for (int i = 3; i > 0; i--) {
-      if (!mounted) return;
+      if (!mounted || token != _countdownToken) return;
       setState(() => _countdownValue = i);
 
       // Play Sound if enabled
@@ -225,7 +231,7 @@ class _BreathingPageState extends State<BreathingPage>
       await Future.delayed(const Duration(seconds: 1));
     }
 
-    if (!mounted) return;
+    if (!mounted || token != _countdownToken) return;
 
     setState(() {
       _isCountingDown = false;
@@ -263,614 +269,320 @@ class _BreathingPageState extends State<BreathingPage>
     context.read<BreathingBloc>().add(ResumeBreathing());
   }
 
+  /// Ends an in-progress session without logging it (same semantics as the
+  /// previous "reset" control).
+  void _stopSession() {
+    _endAudioSession();
+    context.read<BreathingBloc>().add(StopBreathing());
+  }
+
+  void _dismissCompletion() {
+    context.read<BreathingBloc>().add(StopBreathing());
+  }
+
+  void _breatheAgain() {
+    context.read<BreathingBloc>().add(StopBreathing());
+    _startSession();
+  }
+
+  // ── Navigation ────────────────────────────────────────────────────────
+
+  /// Library/detail pop with `true` when the user tapped Begin there —
+  /// start straight away instead of making them press Begin twice.
+  Future<void> _openLibrary() async {
+    final start = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const TechniqueLibraryPage()),
+    );
+    if (start == true && mounted) _startSession();
+  }
+
+  Future<void> _openProgress() async {
+    final start = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const ProgressPage()),
+    );
+    if (start == true && mounted) _startSession();
+  }
+
+  void _openSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SettingsPage()),
+    );
+  }
+
+  void _showDurationSelector() {
+    final bloc = context.read<BreathingBloc>();
+    final durations = bloc.state.technique.availableDurations;
+    final hapticsEnabled = context
+        .read<SettingsBloc>()
+        .state
+        .settings
+        .isHapticEnabled;
+    showEaseSheet<void>(
+      context: context,
+      title: 'Duration',
+      builder: (sheetContext) => HairlineList(
+        children: [
+          for (final d in durations)
+            ListRow(
+              title: formatDurationChoice(d),
+              hapticsEnabled: hapticsEnabled,
+              trailing: SelectedMark(
+                selected: bloc.state.sessionDurationMinutes == d,
+              ),
+              onTap: () {
+                bloc.add(ChangeSessionDuration(d));
+                Navigator.pop(sheetContext);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmLeaveSession() async {
+    final end = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('End this session?'),
+        content: const Text("It won't be saved to your progress."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Keep going'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('End'),
+          ),
+        ],
+      ),
+    );
+    if (end == true && mounted) _stopSession();
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────
+
+  void _onStateChanged(BuildContext context, BreathingState state) {
+    if (state.status == BreathingStatus.active) {
+      WakelockPlus.enable();
+    } else {
+      WakelockPlus.disable();
+    }
+
+    if (state.justReconciled &&
+        (state.status == BreathingStatus.active ||
+            state.status == BreathingStatus.paused)) {
+      // Re-anchor the visual animation to the bloc's authoritative
+      // elapsed time — this is the one place the UI is allowed to seed
+      // itself from session time, and only at this single discontinuity
+      // (session start/resume have their own seeding already; this
+      // covers "returned from background/relaunch").
+      final cycleMs = state.technique.pattern.cycleDurationMs;
+      final t = cycleMs <= 0
+          ? 0.0
+          : (state.sessionElapsedMs % cycleMs) / cycleMs;
+      _breathingController.duration = Duration(milliseconds: cycleMs);
+      // Silently re-sync the last-seen phase — do NOT fire a catch-up
+      // sound/haptic for whatever phase changes happened while away.
+      _lastPhase = state.technique.pattern.phaseAt(t).phase;
+      _breathingController.value = t;
+      // Re-publish Now Playing info unconditionally first — covers a
+      // cold start straight into a paused session, where no prior
+      // `startSession` call ever ran to set the MediaItem.
+      _startAudioSession(state);
+      if (state.status == BreathingStatus.active) {
+        _breathingController.forward(from: t).whenComplete(() {
+          if (context.read<BreathingBloc>().state.status ==
+              BreathingStatus.active) {
+            _breathingController.repeat();
+          }
+        });
+      } else {
+        _pauseAudioSession(state);
+      }
+      return;
+    }
+
+    if (state.status == BreathingStatus.completed) {
+      _endAudioSession();
+      _breathingController.stop();
+      if (context.read<SettingsBloc>().state.settings.isHapticEnabled) {
+        HapticFeedback.heavyImpact();
+      }
+      // Let the orb settle back to rest. The completion view stays until
+      // the user dismisses it — no auto-timeout.
+      _breathingController.animateTo(
+        0.0,
+        duration: AppMotion.of(context, const Duration(seconds: 2)),
+        curve: AppMotion.standard,
+      );
+    } else if (state.status == BreathingStatus.initial) {
+      _breathingController.reset();
+      _breathingController.value = 0.0;
+      _lastPhase = null;
+    } else if (state.technique.pattern.cycleDurationMs !=
+        _breathingController.duration?.inMilliseconds) {
+      // Technique changed
+      _breathingController.duration = Duration(
+        milliseconds: state.technique.pattern.cycleDurationMs,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<BreathingBloc, BreathingState>(
+    return BlocListener<BreathingBloc, BreathingState>(
       listenWhen: (previous, current) =>
           previous.status != current.status ||
           previous.technique != current.technique ||
           current.justReconciled,
-      listener: (context, state) {
-        if (state.status == BreathingStatus.active) {
-          WakelockPlus.enable();
-        } else {
-          WakelockPlus.disable();
-        }
+      listener: _onStateChanged,
+      child: BlocSelector<BreathingBloc, BreathingState, BreathingStatus>(
+        selector: (state) => state.status,
+        builder: (context, status) {
+          final inSession =
+              _isCountingDown ||
+              status == BreathingStatus.active ||
+              status == BreathingStatus.paused;
+          final hapticsEnabled = context.select(
+            (SettingsBloc bloc) => bloc.state.settings.isHapticEnabled,
+          );
+          final pattern = context.select(
+            (BreathingBloc bloc) => bloc.state.technique.pattern,
+          );
 
-        if (state.justReconciled &&
-            (state.status == BreathingStatus.active ||
-                state.status == BreathingStatus.paused)) {
-          // Re-anchor the visual animation to the bloc's authoritative
-          // elapsed time — this is the one place the UI is allowed to seed
-          // itself from session time, and only at this single discontinuity
-          // (session start/resume have their own seeding already; this
-          // covers "returned from background/relaunch").
-          final cycleMs = state.technique.pattern.cycleDurationMs;
-          final t = cycleMs <= 0
-              ? 0.0
-              : (state.sessionElapsedMs % cycleMs) / cycleMs;
-          _breathingController.duration = Duration(milliseconds: cycleMs);
-          // Silently re-sync the last-seen phase — do NOT fire a catch-up
-          // sound/haptic for whatever phase changes happened while away.
-          _lastPhase = state.technique.pattern.phaseAt(t).phase;
-          _breathingController.value = t;
-          // Re-publish Now Playing info unconditionally first — covers a
-          // cold start straight into a paused session, where no prior
-          // `startSession` call ever ran to set the MediaItem.
-          _startAudioSession(state);
-          if (state.status == BreathingStatus.active) {
-            _breathingController.forward(from: t).whenComplete(() {
-              if (context.read<BreathingBloc>().state.status ==
-                  BreathingStatus.active) {
-                _breathingController.repeat();
-              }
-            });
+          final OrbMode orbMode;
+          if (_isCountingDown || status == BreathingStatus.initial) {
+            orbMode = OrbMode.rest;
+          } else if (status == BreathingStatus.active) {
+            orbMode = OrbMode.breathing;
+          } else if (status == BreathingStatus.paused) {
+            orbMode = OrbMode.paused;
           } else {
-            _pauseAudioSession(state);
+            orbMode = OrbMode.follow;
           }
-          return;
-        }
 
-        if (state.status == BreathingStatus.completed) {
-          _endAudioSession();
-          _breathingController.stop();
-          // Check settings before haptic
-          if (context.read<SettingsBloc>().state.settings.isHapticEnabled) {
-            HapticFeedback.heavyImpact();
+          final Widget stage;
+          final String stageKey;
+          if (inSession) {
+            stageKey = 'session';
+            stage = SessionView(
+              isCountingDown: _isCountingDown,
+              phaseIndex: _phaseIndex,
+              phaseSecondsLeft: _phaseSecondsLeft,
+              hapticsEnabled: hapticsEnabled,
+              onPause: _pauseSession,
+              onResume: _resumeSession,
+              onStop: _stopSession,
+              onCancelCountdown: _cancelCountdown,
+            );
+          } else if (status == BreathingStatus.completed) {
+            stageKey = 'completed';
+            stage = CompletionView(
+              hapticsEnabled: hapticsEnabled,
+              onDone: _dismissCompletion,
+              onAgain: _breatheAgain,
+            );
+          } else {
+            stageKey = 'home';
+            stage = HomeView(
+              hapticsEnabled: hapticsEnabled,
+              onBegin: _startSession,
+              onOpenLibrary: _openLibrary,
+              onOpenDuration: _showDurationSelector,
+              onSelectMoment: _selectMoment,
+            );
           }
-          final reduceMotion = MediaQuery.disableAnimationsOf(context);
-          // Reset to initial visual state
-          _breathingController.animateTo(
-            0.0,
-            duration: reduceMotion
-                ? Duration.zero
-                : const Duration(seconds: 2), // Slower reset
-          );
-          _completionTimer?.cancel();
-          _completionTimer = Timer(const Duration(seconds: 3), () {
-            if (mounted) context.read<BreathingBloc>().add(StopBreathing());
-          });
-        } else if (state.status == BreathingStatus.initial) {
-          _breathingController.reset();
-          _breathingController.value = 0.0; // Ensure start small
-        } else if (state.technique.pattern.cycleDurationMs !=
-            _breathingController.duration?.inMilliseconds) {
-          // Technique changed
-          _breathingController.duration = Duration(
-            milliseconds: state.technique.pattern.cycleDurationMs,
-          );
-        }
-      },
-      builder: (context, state) {
-        final theme = Theme.of(context);
-        final hapticsEnabled = context.select(
-          (SettingsBloc bloc) => bloc.state.settings.isHapticEnabled,
-        );
 
-        // Calculate current visual state based on controller
-        // We use AnimatedBuilder to drive the UI at 60fps
-        return Scaffold(
-          body: AnimatedContainer(
-            duration: const Duration(seconds: 1),
-            color: theme.scaffoldBackgroundColor, // Background transition
-            child: SafeArea(
-              child: Stack(
-                children: [
-                  // Top Bar (Custom)
-                  Positioned(
-                    top: 16,
-                    left: 24,
-                    right: 24,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        PremiumIconButton(
-                          icon: Icons.grid_view_rounded,
-                          hapticsEnabled: hapticsEnabled,
-                          semanticLabel: 'Browse breathing techniques',
-                          onTap: _isCountingDown
-                              ? null
-                              : () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const TechniqueLibraryPage(),
-                                  ),
-                                ),
-                        ),
-                        // Technique Label (Center)
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              state.technique.name.toUpperCase(),
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                letterSpacing: 2.0,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white.withValues(alpha: 0.50),
+          return PopScope(
+            canPop: !inSession,
+            onPopInvokedWithResult: (didPop, _) {
+              if (didPop) return;
+              if (_isCountingDown) {
+                _cancelCountdown();
+              } else {
+                _confirmLeaveSession();
+              }
+            },
+            child: Scaffold(
+              body: SafeArea(
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 56,
+                      child: AnimatedSwitcher(
+                        duration: AppMotion.of(context, AppMotion.base),
+                        child: inSession
+                            ? const SessionHeader(key: ValueKey('session'))
+                            : status == BreathingStatus.completed
+                            ? const SizedBox.shrink()
+                            : HomeHeader(
+                                key: const ValueKey('home'),
+                                hapticsEnabled: hapticsEnabled,
+                                onOpenLibrary: _openLibrary,
+                                onOpenProgress: _openProgress,
+                                onOpenSettings: _openSettings,
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              state.technique.pattern.segments
-                                  .map((s) => _formatDuration(s.durationMs))
-                                  .join(' · '),
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.28),
-                                letterSpacing: 1.2,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            PremiumIconButton(
-                              icon: Icons.insights_rounded,
-                              hapticsEnabled: hapticsEnabled,
-                              semanticLabel: 'Your progress',
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const ProgressPage(),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            PremiumIconButton(
-                              icon: Icons.settings_rounded,
-                              hapticsEnabled: hapticsEnabled,
-                              semanticLabel: 'Settings',
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const SettingsPage(),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-
-                  // Main Breathing Content (Centered)
-                  Center(
-                    child: AnimatedBuilder(
-                      animation: Listenable.merge([
-                        _breathingController,
-                        _glowAnimation,
-                      ]),
-                      builder: (context, child) {
-                        // Determine Phase & Scale
-                        final phaseInfo = state.technique.pattern.phaseAt(
-                          _breathingController.value,
-                        );
-                        String displayLabel = phaseInfo.label.toUpperCase();
-                        double scale = phaseInfo.scale; // 0.6 to 1.0 range
-
-                        // Map scale (0.6 - 1.0) to Opacity — ghostly at rest, luminous when full
-                        double aliveOpacity =
-                            0.08 + (0.82 * ((scale - 0.6) / 0.4));
-
-                        // Override if Countdown
-                        if (_isCountingDown) {
-                          scale = 0.6;
-                          displayLabel = "GET READY";
-                          aliveOpacity = 0.65; // keep orb visible for countdown number contrast
-                        } else if (state.status == BreathingStatus.initial) {
-                          scale = 0.6;
-                          displayLabel = "breathe.";
-                          aliveOpacity = 0.08;
-                        } else if (state.status == BreathingStatus.completed) {
-                          displayLabel = "you're calmer now.";
-                          scale = 0.6;
-                          aliveOpacity = 0.08;
-                        }
-
-                        // Soft pulsing glow
-                        double ambientGlow = _glowAnimation.value * 4;
-
-                        // Hidden before a session actually starts — at rest
-                        // it just overlaps the moment-picker chips below.
-                        final showTimer =
-                            !_isCountingDown &&
-                            state.status != BreathingStatus.initial;
-
-                        return Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Spacer(flex: 2), // Top Spacer
-                            // Visual Circle
-                            Semantics(
-                              liveRegion: true,
-                              label: _isCountingDown
-                                  ? 'Get ready, starting in $_countdownValue'
-                                  : '$displayLabel, ${_formatTime(state.sessionRemainingSeconds)} remaining',
-                              child: ExcludeSemantics(
-                                child: SizedBox(
-                              width: 300,
-                              height: 300,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  // Guide ring — fixed reference circle the orb breathes into
-                                  Container(
-                                    width: 260,
-                                    height: 260,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white.withValues(alpha: 0.08),
-                                        width: 1,
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Outer Soft Glow (Breathing)
-                                  Transform.scale(
-                                    scale: scale * 1.05, // Slightly larger
-                                    child: Container(
-                                      width: 220,
-                                      height: 220,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: theme.colorScheme.primary
-                                                .withValues(alpha: 0.15),
-                                            blurRadius: 36 + ambientGlow,
-                                            spreadRadius: 6 + ambientGlow,
-                                          ),
-                                          BoxShadow(
-                                            color: theme.colorScheme.primary
-                                                .withValues(alpha: 0.07),
-                                            blurRadius: 60 + ambientGlow * 2,
-                                            spreadRadius: 14 + ambientGlow,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Main Breathing Object
-                                  Transform.scale(
-                                    scale: scale,
-                                    child: Container(
-                                      width: 220,
-                                      height: 220,
-                                      decoration: BoxDecoration(
-                                        gradient: RadialGradient(
-                                          center: const Alignment(-0.3, -0.4),
-                                          radius: 0.85,
-                                          colors: [
-                                            Color.lerp(
-                                              theme.colorScheme.primary,
-                                              Colors.white,
-                                              0.25,
-                                            )!.withValues(alpha: aliveOpacity),
-                                            theme.colorScheme.primary
-                                                .withValues(alpha: aliveOpacity),
-                                          ],
-                                        ),
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          // Inner depth/glow
-                                          BoxShadow(
-                                            color: theme.colorScheme.surface
-                                                .withValues(alpha: 0.2),
-                                            blurRadius: 20,
-                                            spreadRadius: -10,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Countdown Overlay
-                                  if (_isCountingDown)
-                                    Text(
-                                      "$_countdownValue",
-                                      style: theme.textTheme.displayLarge
-                                          ?.copyWith(
-                                            color: theme.colorScheme.surface,
-                                            fontWeight: FontWeight.w300,
-                                          ),
-                                    ),
-                                ],
-                              ),
-                                ),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final size = (constraints.biggest.shortestSide - 16)
+                              .clamp(160.0, 320.0);
+                          return Center(
+                            child: Semantics(
+                              image: true,
+                              label: 'Breathing guide',
+                              child: BreathingOrb(
+                                cycle: _breathingController,
+                                pattern: pattern,
+                                mode: orbMode,
+                                size: size,
+                                center: _isCountingDown
+                                    ? CountdownNumeral(value: _countdownValue)
+                                    : null,
                               ),
                             ),
-
-                            const SizedBox(height: 48),
-
-                            // Phase Text
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 400),
-                              transitionBuilder:
-                                  (Widget child, Animation<double> animation) {
-                                    return FadeTransition(
-                                      opacity: animation,
-                                      child: child,
-                                    );
-                                  },
-                              child: Text(
-                                displayLabel,
-                                textAlign: TextAlign.center,
-                                key: ValueKey(displayLabel),
-                                style: theme.textTheme.displayMedium?.copyWith(
-                                  color: theme.colorScheme.onSurface.withValues(
-                                    alpha: 0.55,
-                                  ),
-                                  fontSize:
-                                      displayLabel == "you're calmer now."
-                                      ? 22
-                                      : null,
-                                  letterSpacing:
-                                      (displayLabel == "breathe." ||
-                                          displayLabel ==
-                                              "you're calmer now.")
-                                      ? 1.5
-                                      : 4.0,
-                                ),
-                              ),
-                            ),
-
-                            if (state.status ==
-                                BreathingStatus.completed) ...[
-                              const SizedBox(height: 12),
-                              AnimatedOpacity(
-                                opacity: 1.0,
-                                duration: const Duration(milliseconds: 600),
-                                child: Text(
-                                  _postSessionRewardText(state),
-                                  textAlign: TextAlign.center,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.45),
-                                  ),
-                                ),
-                              ),
-                            ],
-
-                            if (showTimer) ...[
-                              const SizedBox(height: 24),
-                              // Timer
-                              Text(
-                                _formatTime(state.sessionRemainingSeconds),
-                                style: theme.textTheme.headlineMedium
-                                    ?.copyWith(
-                                      color: theme.colorScheme.onSurface,
-                                    ),
-                              ),
-                            ],
-
-                            const Spacer(flex: 3), // Bottom Spacer
-                          ],
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-
-                  // Bottom Controls (Play/Pause)
-                  Positioned(
-                    bottom: 48,
-                    left: 0,
-                    right: 0,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Reset Session Button
-                        AnimatedOpacity(
-                          opacity:
-                              (state.status == BreathingStatus.active ||
-                                  state.status == BreathingStatus.paused)
-                              ? 1.0
-                              : 0.0,
-                          duration: const Duration(milliseconds: 300),
+                    AnimatedSize(
+                      duration: AppMotion.of(context, AppMotion.calm),
+                      curve: AppMotion.standard,
+                      alignment: Alignment.topCenter,
+                      child: AnimatedSwitcher(
+                        duration: AppMotion.of(context, AppMotion.calm),
+                        switchInCurve: AppMotion.enter,
+                        switchOutCurve: AppMotion.exit,
+                        layoutBuilder: (current, previous) => Stack(
+                          alignment: Alignment.topCenter,
+                          children: [...previous, ?current],
+                        ),
+                        child: KeyedSubtree(
+                          key: ValueKey(stageKey),
                           child: Padding(
-                            padding: const EdgeInsets.only(right: 32),
-                            child: PremiumIconButton(
-                              icon: Icons.refresh_rounded,
-                              size: 56,
-                              hapticsEnabled: hapticsEnabled,
-                              semanticLabel: 'Reset session',
-                              onTap: () {
-                                _endAudioSession();
-                                context.read<BreathingBloc>().add(
-                                  StopBreathing(),
-                                );
-                              },
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpacing.gutter,
+                              AppSpacing.xl,
+                              AppSpacing.gutter,
+                              AppSpacing.lg,
                             ),
+                            child: stage,
                           ),
-                        ),
-
-                        // Main Play Button
-                        PremiumPlayButton(
-                          isPlaying: state.status == BreathingStatus.active,
-                          hapticsEnabled: hapticsEnabled,
-                          onTap: () {
-                            if (_isCountingDown) return;
-                            if (state.status == BreathingStatus.active) {
-                              _pauseSession();
-                            } else if (state.status == BreathingStatus.paused) {
-                              _resumeSession();
-                            } else {
-                              _startSession();
-                            }
-                          },
-                        ),
-
-                        // Duration Selector (Right side balance)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 32),
-                          child: PremiumIconButton(
-                            icon: Icons.timer_outlined,
-                            size: 56,
-                            hapticsEnabled: hapticsEnabled,
-                            semanticLabel: 'Choose session duration',
-                            onTap: _isCountingDown
-                                ? null
-                                : () => _showDurationSelector(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Moment Picker — "What do you need right now?"
-                  Positioned(
-                    bottom: 176,
-                    left: 0,
-                    right: 0,
-                    child: IgnorePointer(
-                      ignoring:
-                          state.status != BreathingStatus.initial ||
-                          _isCountingDown,
-                      child: AnimatedOpacity(
-                        opacity:
-                            (state.status == BreathingStatus.initial &&
-                                !_isCountingDown)
-                            ? 1.0
-                            : 0.0,
-                        duration: const Duration(milliseconds: 300),
-                        child: MomentPicker(
-                          hapticsEnabled: hapticsEnabled,
-                          onSelect: _selectMoment,
                         ),
                       ),
                     ),
-                  ),
-
-                  // Earphone Suggestion (Bottom Center)
-                  Positioned(
-                    bottom: 16,
-                    left: 0,
-                    right: 0,
-                    child: Builder(
-                      builder: (context) {
-                        final isSoundEnabled = context.select(
-                          (SettingsBloc bloc) =>
-                              bloc.state.settings.isSoundEnabled,
-                        );
-                        return AnimatedOpacity(
-                          opacity:
-                              (isSoundEnabled &&
-                                  state.status == BreathingStatus.initial &&
-                                  !_isCountingDown)
-                              ? 1.0
-                              : 0.0,
-                          duration: const Duration(milliseconds: 800),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.headphones_outlined,
-                                size: 12,
-                                color: theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.25,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                "Use earphones for the best experience",
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withValues(
-                                    alpha: 0.25,
-                                  ),
-                                  fontWeight: FontWeight.w400,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  String _postSessionRewardText(BreathingState state) {
-    if (state.postSessionAchievementTitle != null) {
-      return 'Achievement unlocked · ${state.postSessionAchievementTitle}';
-    }
-    final streakDays = state.postSessionStreakDays;
-    if (streakDays != null) {
-      return '$streakDays day${streakDays == 1 ? '' : 's'} streak';
-    }
-    return 'First session logged';
-  }
-
-  String _formatTime(int totalSeconds) {
-    if (totalSeconds == -1) return '∞';
-    final minutes = totalSeconds ~/ 60;
-    final seconds = totalSeconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  String _formatDuration(int ms) {
-    final double seconds = ms / 1000;
-    return seconds == seconds.toInt() ? '${seconds.toInt()}s' : '${seconds}s';
-  }
-
-  void _showDurationSelector(BuildContext context) {
-    final durations =
-        context.read<BreathingBloc>().state.technique.availableDurations;
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => Container(
-        padding: const EdgeInsets.fromLTRB(24, 16, 24, 48),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(2),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-            Text("Duration", style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 24),
-            ...durations.map(
-              (d) => ListTile(
-                title: Text(d == -1 ? 'Infinite' : '$d min'),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                onTap: () {
-                  context.read<BreathingBloc>().add(ChangeSessionDuration(d));
-                  Navigator.pop(context);
-                },
-                trailing:
-                    context
-                            .read<BreathingBloc>()
-                            .state
-                            .sessionDurationMinutes ==
-                        d
-                    ? Icon(
-                        Icons.circle,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 12,
-                      )
-                    : null,
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

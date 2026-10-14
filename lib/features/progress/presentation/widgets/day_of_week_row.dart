@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
-/// Monday..Sunday row of 7 small monochrome ticks — filled where a session
-/// was completed that day, hollow otherwise. Today gets a hairline ring so
-/// it's identifiable regardless of fill state — no information conveyed by
-/// color alone.
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+
+/// Monday..Sunday: a filled disc where a session was completed, a hairline
+/// ring otherwise. Today is marked by its label (white, not dimmed) and a
+/// brighter ring — never by colour alone.
 class DayOfWeekRow extends StatelessWidget {
   final List<bool> perDayPracticed; // Mon..Sun
   final int todayIndex; // 0=Mon..6=Sun
@@ -27,7 +29,7 @@ class DayOfWeekRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final label = Theme.of(context).textTheme.bodySmall;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(7, (i) {
@@ -42,27 +44,26 @@ class DayOfWeekRow extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 28,
-                  height: 28,
+                  width: 24,
+                  height: 24,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: practiced
-                        ? theme.colorScheme.primary
-                        : Colors.transparent,
+                    color: practiced ? AppColors.white : Colors.transparent,
                     border: Border.all(
-                      color: isToday
-                          ? theme.colorScheme.primary.withValues(alpha: 0.9)
-                          : theme.colorScheme.onSurface.withValues(
-                              alpha: 0.14,
-                            ),
-                      width: isToday ? 1.5 : 1,
+                      color: practiced
+                          ? AppColors.white
+                          : (isToday
+                                ? AppColors.secondary
+                                : AppColors.hairline),
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: AppSpacing.sm),
                 Text(
                   _labels[i],
-                  style: theme.textTheme.labelSmall?.copyWith(fontSize: 10),
+                  style: label?.copyWith(
+                    color: isToday ? AppColors.white : AppColors.tertiary,
+                  ),
                 ),
               ],
             ),
